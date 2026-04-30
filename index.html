@@ -1437,7 +1437,7 @@ function renderTxCard(t) {
       </div>
       <div class="flex items-center justify-between">
         <span class="text-[10px] text-gray-300">${t.serial_no}</span>
-        <div class="flex gap-2">
+        <div class="flex gap-2 flex-wrap">
           ${canEdit ? `
             <button onclick="openReversal('${t.id}')"
               class="btn-touch text-xs px-3 py-1.5 rounded-lg bg-red-50 text-red-600 border border-red-200 min-h-[44px]">
@@ -1454,9 +1454,21 @@ function renderTxCard(t) {
               申请修改
             </button>
           ` : ''}
+          ${!isLocked && canBookkeep() ? `
+            <button onclick="triggerReceiptUpload('${t.id}')"
+              class="btn-touch text-xs px-3 py-1.5 rounded-lg bg-green-50 text-green-600 border border-green-200 min-h-[44px]">
+              上传凭证${t.receipt_urls && t.receipt_urls.length ? `(${t.receipt_urls.length})` : ''}
+            </button>
+          ` : ''}
           ${isLocked ? `<span class="text-[10px] text-gray-400 self-center inline-flex items-center gap-0.5"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>已锁定</span>` : ''}
         </div>
       </div>
+      ${t.receipt_urls && t.receipt_urls.length ? `
+      <div class="flex gap-1 mt-2 flex-wrap">
+        ${t.receipt_urls.map(url => `
+          <img src="${escHtml(url)}" class="w-12 h-12 object-cover rounded border cursor-pointer hover:opacity-80" onclick="openImageViewer('${escHtml(url)}')" />
+        `).join('')}
+      </div>` : ''}
     </div>
   `;
 }
@@ -1511,6 +1523,12 @@ function renderTxRow(t) {
           <button onclick="openModifyLocked('${t.id}')"
             class="text-xs px-2 py-1 rounded text-orange-600 hover:bg-orange-50 border border-transparent hover:border-orange-200 transition-colors">
             申请修改
+          </button>
+        ` : ''}
+        ${!isLocked && canBookkeep() ? `
+          <button onclick="triggerReceiptUpload('${t.id}')"
+            class="text-xs px-2 py-1 rounded text-green-600 hover:bg-green-50 border border-transparent hover:border-green-200 transition-colors">
+            凭证${t.receipt_urls && t.receipt_urls.length ? `(${t.receipt_urls.length})` : ''}
           </button>
         ` : ''}
       </td>
@@ -1588,6 +1606,9 @@ async function submitTransaction(e) {
       }
     }
 
+    // 先上传凭证图片（如有）
+    const receiptUrls = await uploadFiles();
+
     const payload = {
       transaction_date: document.getElementById('tx-date').value,
       tx_type:    txType,
@@ -1601,6 +1622,7 @@ async function submitTransaction(e) {
       creator_id:   currentUser.id,
       creator_name: currentUser.name,
       serial_no:    '',   // 触发器自动生成
+      receipt_urls: receiptUrls.length ? receiptUrls : null,
     };
 
     const { error } = await sb.from('transactions').insert(payload);
@@ -2466,6 +2488,7 @@ async function updateUserRole(userId, role) {
 // 文件上传（Supabase Storage）+ 图片裁切
 // ================================================================
 let pendingFiles = [];   // { file, previewUrl }
+let receiptUploadTxId = null; // 正在为哪条记录上传凭证（null 表示新增交易模式）
 
 async function handleFileSelect(e) {
   const files = Array.from(e.target.files);
@@ -2770,15 +2793,58 @@ function confirmCrop() {
   outCtx.imageSmoothingQuality = 'high';
   outCtx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, outW, outH);
 
-  outCanvas.toBlob((blob) => {
+  outCanvas.toBlob(async (blob) => {
     if (!blob) { showToast('裁切失败', 'error'); return; }
     const croppedFile = new File([blob], fileName, { type: 'image/jpeg' });
-    const previewUrl = URL.createObjectURL(blob);
-    pendingFiles.push({ file: croppedFile, previewUrl });
-    renderFilePreview();
+
+    if (receiptUploadTxId) {
+      // 模式：为已有记录上传凭证，直接上传并关联
+      await uploadReceiptAndAttach(receiptUploadTxId, croppedFile);
+      receiptUploadTxId = null;
+    } else {
+      // 模式：新增交易，暂存到 pendingFiles
+      const previewUrl = URL.createObjectURL(blob);
+      pendingFiles.push({ file: croppedFile, previewUrl });
+      renderFilePreview();
+      showToast('图片已裁切并压缩', 'success');
+    }
     cancelCrop();
-    showToast('图片已裁切并压缩', 'success');
   }, 'image/jpeg', quality);
+}
+
+// 为已有交易记录上传凭证并关联到 receipt_urls
+async function uploadReceiptAndAttach(txId, file) {
+  try {
+    showToast('正在上传凭证…', 'info');
+    const path = `vouchers/${currentUser.id}/${Date.now()}-${file.name}`;
+    const { data, error: upErr } = await sb.storage.from('attachments').upload(path, file);
+    if (upErr) throw upErr;
+
+    const { data: urlData } = sb.storage.from('attachments').getPublicUrl(path);
+    const newUrl = urlData.publicUrl;
+
+    // 读取已有 receipt_urls，追加新 URL
+    const { data: txData, error: readErr } = await sb
+      .from('transactions')
+      .select('receipt_urls')
+      .eq('id', txId)
+      .single();
+    if (readErr) throw readErr;
+
+    const oldUrls = Array.isArray(txData.receipt_urls) ? txData.receipt_urls : [];
+    const updatedUrls = [...oldUrls, newUrl];
+
+    const { error: updErr } = await sb
+      .from('transactions')
+      .update({ receipt_urls: updatedUrls })
+      .eq('id', txId);
+    if (updErr) throw updErr;
+
+    showToast('凭证已上传', 'success');
+    loadTransactions();
+  } catch (err) {
+    showToast('凭证上传失败：' + err.message, 'error');
+  }
 }
 
 // 智能压缩（不裁切时的压缩，保持清晰）
@@ -2870,6 +2936,19 @@ function closeImageViewer(e) {
   if (e && e.target !== e.currentTarget) return;
   document.getElementById('modal-image-viewer').classList.add('hidden');
   document.body.style.overflow = '';
+}
+
+// 触发为已有记录上传凭证
+function triggerReceiptUpload(txId) {
+  receiptUploadTxId = txId;
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.onchange = (e) => {
+    const file = e.target.files[0];
+    if (file) openCropper(file);
+  };
+  input.click();
 }
 
 async function uploadFiles() {
