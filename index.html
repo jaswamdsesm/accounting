@@ -272,6 +272,24 @@
     }
   </script>
 <script>
+/* ========== 下拉/日期选择器滚动锁定 ========== */
+let _openDropdownCount = 0;
+function _lockDropdownScroll() {
+  _openDropdownCount++;
+  // 移动端：锁住最近的可滚动父容器
+  const panel = document.getElementById('modal-tx-panel');
+  if (panel && window.innerWidth < 768) {
+    panel.style.overflow = 'hidden';
+  }
+}
+function _unlockDropdownScroll() {
+  _openDropdownCount = Math.max(0, _openDropdownCount - 1);
+  if (_openDropdownCount === 0) {
+    const panel = document.getElementById('modal-tx-panel');
+    if (panel) panel.style.overflow = '';
+  }
+}
+
 /* ========== 自定义下拉组件（替换所有原生 select） ========== */
 class CustomSelect {
   constructor(selectEl) {
@@ -358,6 +376,7 @@ class CustomSelect {
     // 先关闭其它已打开的下拉
     document.querySelectorAll('.custom-sel.open').forEach(el => el.classList.remove('open'));
     this.wrap.classList.add('open');
+    _lockDropdownScroll();
 
     requestAnimationFrame(() => {
       const btnRect = this._btn.getBoundingClientRect();
@@ -384,6 +403,7 @@ class CustomSelect {
     this._list.style.bottom = '';
     this._list.style.left  = '';
     this._list.style.width = '';
+    _unlockDropdownScroll();
   }
 
   _rebuild() { this._updateBtn(); this._buildOpts(); }
@@ -532,6 +552,7 @@ class CustomDatePicker {
     // 关闭其他已打开的日期选择器
     document.querySelectorAll('.date-picker-wrap.open').forEach(el => el.classList.remove('open'));
     this.wrap.classList.add('open');
+    _lockDropdownScroll();
     this._renderPopup();
 
     // position: fixed 需要手动计算弹窗位置
@@ -555,7 +576,7 @@ class CustomDatePicker {
       }
     });
   }
-  _close() { this.wrap.classList.remove('open'); }
+  _close() { this.wrap.classList.remove('open'); _unlockDropdownScroll(); }
 
   _sync() {
     this.el.value = this.value;
