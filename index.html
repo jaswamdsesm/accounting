@@ -8,6 +8,8 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Supabase JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- SheetJS（Excel 读写） -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <!-- 飞书 JSSDK（自建网页应用免登） -->
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
@@ -214,11 +216,17 @@
     <div class="sticky top-0 bg-gray-50 z-20 px-4 pt-4 pb-2 md:px-6">
       <div class="flex items-center justify-between mb-3">
         <h2 class="text-lg font-bold text-gray-800">收支流水</h2>
-        <!-- 电脑端：新增按钮在顶部；移动端：固定底部 -->
-        <button onclick="openAddModal()" id="btn-add-desktop"
-          class="hidden md:flex btn-touch items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg transition-colors">
-          <span class="text-base">＋</span> 新增记录
-        </button>
+        <div class="flex items-center gap-2">
+          <button onclick="openImportModal()"
+            class="hidden md:flex btn-touch items-center gap-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm px-3 py-2 rounded-lg transition-colors">
+            📤 批量导入
+          </button>
+          <!-- 电脑端：新增按钮在顶部；移动端：固定底部 -->
+          <button onclick="openAddModal()" id="btn-add-desktop"
+            class="hidden md:flex btn-touch items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg transition-colors">
+            <span class="text-base">＋</span> 新增记录
+          </button>
+        </div>
       </div>
       <!-- 筛选栏 -->
       <div class="flex flex-wrap gap-2 text-xs">
@@ -301,7 +309,13 @@
 
   <!-- ========== 审计日志页面 ========== -->
   <div id="page-audit" class="page hidden p-4 md:p-6">
-    <h2 class="text-lg font-bold text-gray-800 mb-4">审计日志</h2>
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-lg font-bold text-gray-800">审计日志</h2>
+      <button onclick="exportAuditCSV()"
+        class="btn-touch flex items-center gap-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm px-3 py-2 rounded-lg transition-colors">
+        📥 导出 CSV
+      </button>
+    </div>
     <div class="overflow-x-auto">
       <table class="data-table w-full text-xs md:text-sm border-collapse">
         <thead>
@@ -349,6 +363,13 @@
           </button>
         </div>
         <p class="text-[10px] text-gray-300 mt-1">修改后，系统中所有由你创建的记录也会同步更新显示名称</p>
+      </div>
+      <div class="pt-4 border-t border-gray-100">
+        <button onclick="openFeishuNotifyModal()"
+          class="btn-touch w-full flex items-center justify-between px-4 py-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
+          <span class="text-sm text-gray-700">🔔 飞书通知设置</span>
+          <span class="text-gray-400 text-xs">Webhook</span>
+        </button>
       </div>
     </div>
   </div>
@@ -627,8 +648,91 @@
 
 
 <!-- ============================================================
-     JavaScript 主逻辑
+     批量导入 模态框
 ============================================================ -->
+<div id="modal-import" class="fixed inset-0 hidden modal-backdrop bg-black/30" style="z-index:60">
+  <div class="absolute inset-x-0 bottom-0 md:relative md:inset-auto md:mx-auto md:my-8 md:max-w-lg
+              bg-white rounded-t-2xl md:rounded-2xl shadow-2xl p-5 max-h-[80vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-bold">📤 批量导入账单</h3>
+      <button onclick="closeModal('modal-import')" class="text-gray-400 text-2xl w-8 h-8 flex items-center justify-center">×</button>
+    </div>
+    <div class="space-y-4">
+      <div class="bg-blue-50 rounded-lg p-3 text-xs text-blue-700 space-y-1">
+        <p><b>模板格式说明：</b></p>
+        <p>第一行为表头，从第二行开始为数据。支持 .xlsx 和 .csv 格式。</p>
+        <p>必填列：<b>日期、收支类型、金额、分类、关联账户、交易对方</b></p>
+        <p>选填列：交易说明</p>
+        <p>收支类型填：收入 / 支出</p>
+        <p>关联账户必须与系统中的账户名称一致</p>
+      </div>
+      <div>
+        <button onclick="downloadImportTemplate()"
+          class="w-full btn-touch rounded-lg border-2 border-dashed border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-600 text-sm py-3 transition-colors">
+          📥 下载导入模板
+        </button>
+      </div>
+      <div>
+        <div class="border-2 border-dashed border-gray-200 rounded-lg p-4 text-center text-sm text-gray-400 cursor-pointer hover:border-blue-300 hover:text-blue-400 transition-colors"
+          onclick="document.getElementById('import-file').click()">
+          <span>点击选择 Excel / CSV 文件</span>
+          <input type="file" id="import-file" accept=".xlsx,.csv" class="hidden" onchange="handleImportFile(event)" />
+        </div>
+        <p id="import-file-name" class="text-xs text-gray-400 mt-1"></p>
+      </div>
+      <div id="import-preview-area" class="hidden">
+        <div class="flex items-center justify-between mb-2">
+          <p class="text-sm font-medium text-gray-700">预览数据（前5条）</p>
+          <p id="import-count" class="text-xs text-gray-400"></p>
+        </div>
+        <div class="overflow-x-auto max-h-48 border border-gray-100 rounded-lg">
+          <table class="w-full text-xs border-collapse">
+            <thead id="import-preview-head" class="bg-gray-50 sticky top-0"></thead>
+            <tbody id="import-preview-body"></tbody>
+          </table>
+        </div>
+        <div id="import-errors" class="mt-2 text-xs text-red-500"></div>
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="button" onclick="closeModal('modal-import')"
+          class="flex-1 btn-bottom rounded-xl border border-gray-200 text-sm text-gray-500">取消</button>
+        <button type="button" onclick="confirmImport()" id="btn-confirm-import" disabled
+          class="flex-1 btn-bottom rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+          确认导入
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     飞书通知设置 模态框
+============================================================ -->
+<div id="modal-feishu-notify" class="fixed inset-0 hidden modal-backdrop bg-black/30" style="z-index:60">
+  <div class="absolute inset-x-4 top-[15%] md:relative md:inset-auto md:mx-auto md:my-8 md:max-w-sm
+              bg-white rounded-2xl shadow-2xl p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-bold">🔔 飞书通知设置</h3>
+      <button onclick="closeModal('modal-feishu-notify')" class="text-gray-400 text-2xl w-8 h-8 flex items-center justify-center">×</button>
+    </div>
+    <div class="space-y-4">
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">Webhook URL</label>
+        <input type="url" id="feishu-webhook" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..."
+          class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+        <p class="text-[10px] text-gray-300 mt-1">飞书群 → 设置 → 群机器人 → 添加自定义机器人 → 复制 Webhook 地址</p>
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="button" onclick="closeModal('modal-feishu-notify')"
+          class="flex-1 btn-bottom rounded-xl border border-gray-200 text-sm text-gray-500">取消</button>
+        <button type="button" onclick="saveFeishuWebhook()"
+          class="flex-1 btn-bottom rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium">保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
 <script>
 // ================================================================
 // 配置区（部署时替换以下三个值）
@@ -1270,6 +1374,11 @@ async function submitModifyRequest(e) {
 
     showToast('申请已提交，等待股东审批', 'success');
     closeModal('modal-modify-locked');
+
+    await sendFeishuNotify(
+      '新的修改申请',
+      `${currentUser.name} 申请修改已锁定记录 ${tx.serial_no}\n原因：${reason}`
+    );
   } catch(err) {
     showToast('提交失败：' + err.message, 'error');
   }
@@ -1362,6 +1471,318 @@ async function loadAuditLogs() {
 }
 
 // ================================================================
+// 审计日志导出 CSV
+// ================================================================
+async function exportAuditCSV() {
+  showToast('正在导出...', 'info');
+  try {
+    const { data: logs } = await sb.from('audit_logs')
+      .select('*')
+      .order('operated_at', { ascending: false });
+
+    if (!logs || logs.length === 0) {
+      showToast('暂无日志可导出', 'warning');
+      return;
+    }
+
+    const actionMap = {
+      create:'新增', update:'修改', reversal:'冲销',
+      correction:'补录', lock:'锁定', unlock:'解锁', pending_lock:'待锁定'
+    };
+
+    const BOM = '\uFEFF';
+    const header = '操作时间,操作人,IP,类型,对象表,流水号,变更前,变更后\n';
+    const rows = logs.map(l => [
+      fmtDateTime(l.operated_at),
+      l.operator_name || '',
+      l.operator_ip || '',
+      actionMap[l.action_type] || l.action_type,
+      l.target_table || '',
+      l.target_serial || '',
+      l.before_value ? JSON.stringify(l.before_value) : '',
+      l.after_value ? JSON.stringify(l.after_value) : ''
+    ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+
+    const blob = new Blob([BOM + header + rows], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `审计日志_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    showToast(`已导出 ${logs.length} 条日志`, 'success');
+  } catch(err) {
+    showToast('导出失败：' + err.message, 'error');
+  }
+}
+
+// ================================================================
+// 批量导入账单
+// ================================================================
+let importData = []; // 解析后的行数据
+
+function openImportModal() {
+  importData = [];
+  document.getElementById('import-file').value = '';
+  document.getElementById('import-file-name').textContent = '';
+  document.getElementById('import-preview-area').classList.add('hidden');
+  document.getElementById('import-errors').textContent = '';
+  document.getElementById('btn-confirm-import').disabled = true;
+  openModal('modal-import');
+}
+
+function downloadImportTemplate() {
+  const headers = ['日期', '收支类型', '金额', '分类', '关联账户', '交易对方', '交易说明'];
+  const incomeCats = ['营业收入', '营业外收入', '其他收入'];
+  const expenseCats = ['采购成本', '人力成本', '办公费', '业务招待费', '税费', '其他支出'];
+  const sampleRows = [
+    ['2026-04-01', '收入', '5000', '营业收入', '微信零钱', '客户A', '4月份服务费'],
+    ['2026-04-02', '支出', '1200', '采购成本', '公司账户', '供应商B', '原材料采购'],
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...sampleRows]);
+
+  // 添加分类下拉提示（通过数据验证）
+  const allCats = [...incomeCats, ...expenseCats];
+  // 添加第二行示例数据后，设置列宽
+  ws['!cols'] = [
+    { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 20 }
+  ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '导入模板');
+
+  // 第二个 sheet 放分类参考
+  const refWs = XLSX.utils.aoa_to_sheet([
+    ['收支类型', '可选分类'],
+    ['收入', '营业收入'],
+    ['收入', '营业外收入'],
+    ['收入', '其他收入'],
+    ['支出', '采购成本'],
+    ['支出', '人力成本'],
+    ['支出', '办公费'],
+    ['支出', '业务招待费'],
+    ['支出', '税费'],
+    ['支出', '其他支出'],
+  ]);
+  refWs['!cols'] = [{ wch: 10 }, { wch: 14 }];
+  XLSX.utils.book_append_sheet(wb, refWs, '分类参考');
+
+  // 第三个 sheet 放账户参考（从系统账户列表生成）
+  const accRows = [['系统账户名称（关联账户列必须与之一致）']];
+  allAccounts.forEach(a => accRows.push([a.account_name]));
+  if (allAccounts.length === 0) accRows.push(['（暂无账户，请先在系统内创建）']);
+  const accWs = XLSX.utils.aoa_to_sheet(accRows);
+  accWs['!cols'] = [{ wch: 30 }];
+  XLSX.utils.book_append_sheet(wb, accWs, '账户参考');
+
+  XLSX.writeFile(wb, '账单导入模板.xlsx');
+}
+
+async function handleImportFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  document.getElementById('import-file-name').textContent = file.name;
+  document.getElementById('import-preview-area').classList.add('hidden');
+  document.getElementById('import-errors').textContent = '';
+  document.getElementById('btn-confirm-import').disabled = true;
+
+  try {
+    const data = await readExcelFile(file);
+    importData = data;
+
+    // 验证
+    const errors = validateImportData(data);
+    const errorEl = document.getElementById('import-errors');
+    if (errors.length > 0) {
+      errorEl.textContent = errors.slice(0, 5).join('；');
+      if (errors.length > 5) errorEl.textContent += `…等 ${errors.length} 个错误`;
+    } else {
+      errorEl.textContent = '';
+      document.getElementById('btn-confirm-import').disabled = false;
+    }
+
+    // 预览前5条
+    const headers = ['日期', '收支类型', '金额', '分类', '关联账户', '交易对方', '交易说明'];
+    const headHtml = '<tr>' + headers.map(h => `<th class="px-2 py-1 text-left border-b bg-gray-50 font-medium text-gray-500">${h}</th>`).join('') + '</tr>';
+    const bodyHtml = data.slice(0, 5).map(row => {
+      return '<tr class="border-b border-gray-50">' +
+        headers.map((_, i) => `<td class="px-2 py-1 whitespace-nowrap">${escHtml(String(row[i] || ''))}</td>`).join('') +
+        '</tr>';
+    }).join('');
+
+    document.getElementById('import-preview-head').innerHTML = headHtml;
+    document.getElementById('import-preview-body').innerHTML = bodyHtml;
+    document.getElementById('import-count').textContent = `共 ${data.length} 条`;
+    document.getElementById('import-preview-area').classList.remove('hidden');
+
+  } catch(err) {
+    document.getElementById('import-errors').textContent = '文件解析失败：' + err.message;
+  }
+}
+
+function readExcelFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const wb = XLSX.read(e.target.result, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(ws, { header: 1 });
+        // 跳过表头（第一行）
+        const rows = json.slice(1).filter(r => r.length >= 6 && r[0]); // 至少有6列且有日期
+        resolve(rows);
+      } catch(err) {
+        reject(err);
+      }
+    };
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function validateImportData(data) {
+  const errors = [];
+  const validTypes = ['收入', '支出'];
+  const validCats = ['营业收入','营业外收入','其他收入','采购成本','人力成本','办公费','业务招待费','税费','其他支出'];
+  const accountNames = new Set(allAccounts.map(a => a.account_name));
+
+  data.forEach((row, i) => {
+    const line = i + 2; // Excel 行号（+1 表头，+1 从1开始）
+    if (!row[0] || !/^\d{4}-\d{2}-\d{2}$/.test(String(row[0]))) {
+      errors.push(`第${line}行：日期格式错误，需为 YYYY-MM-DD`);
+    }
+    if (!validTypes.includes(String(row[1]))) {
+      errors.push(`第${line}行：收支类型需为"收入"或"支出"`);
+    }
+    if (!row[2] || isNaN(parseFloat(row[2])) || parseFloat(row[2]) <= 0) {
+      errors.push(`第${line}行：金额需为正数`);
+    }
+    if (!validCats.includes(String(row[3]))) {
+      errors.push(`第${line}行：分类"${row[3]}"无效`);
+    }
+    if (!accountNames.has(String(row[4]))) {
+      errors.push(`第${line}行：关联账户"${row[4]}"在系统中不存在`);
+    }
+    if (!row[5] || !String(row[5]).trim()) {
+      errors.push(`第${line}行：交易对方不能为空`);
+    }
+  });
+
+  return errors;
+}
+
+async function confirmImport() {
+  if (importData.length === 0) return;
+
+  const btn = document.getElementById('btn-confirm-import');
+  btn.disabled = true;
+  btn.textContent = '导入中...';
+
+  try {
+    let success = 0, fail = 0;
+    const errors = [];
+
+    for (let i = 0; i < importData.length; i++) {
+      const row = importData[i];
+      const txType = String(row[1]) === '收入' ? 'income' : 'expense';
+      const amount = parseFloat(row[2]);
+      const account = allAccounts.find(a => a.account_name === String(row[4]));
+
+      if (!account) {
+        fail++;
+        errors.push(`第${i+2}行：账户"${row[4]}"不存在`);
+        continue;
+      }
+
+      const payload = {
+        transaction_date: String(row[0]),
+        tx_type: txType,
+        amount: amount,
+        category: String(row[3]),
+        account_id: account.id,
+        counterparty: String(row[5]),
+        description: row[6] ? String(row[6]) : null,
+        record_type: 'normal',
+        creator_id: currentUser.id,
+        creator_name: currentUser.name,
+        serial_no: '',
+      };
+
+      const { error } = await sb.from('transactions').insert(payload);
+      if (error) {
+        fail++;
+        errors.push(`第${i+2}行：${error.message}`);
+      } else {
+        success++;
+      }
+    }
+
+    await loadAccounts();
+    if (currentPage === 'dashboard') loadDashboard();
+    if (currentPage === 'transactions') loadTransactions();
+
+    closeModal('modal-import');
+    showToast(`导入完成：成功 ${success} 条${fail > 0 ? `，失败 ${fail} 条` : ''}`, success > 0 ? 'success' : 'warning');
+
+  } catch(err) {
+    showToast('导入失败：' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '确认导入';
+  }
+}
+
+// ================================================================
+// 飞书消息通知
+// ================================================================
+const FEISHU_WEBHOOK_KEY = 'shareholder_feishu_webhook';
+
+function openFeishuNotifyModal() {
+  const saved = localStorage.getItem(FEISHU_WEBHOOK_KEY) || '';
+  document.getElementById('feishu-webhook').value = saved;
+  openModal('modal-feishu-notify');
+}
+
+function saveFeishuWebhook() {
+  const url = document.getElementById('feishu-webhook').value.trim();
+  if (url) {
+    localStorage.setItem(FEISHU_WEBHOOK_KEY, url);
+    showToast('Webhook 已保存', 'success');
+  } else {
+    localStorage.removeItem(FEISHU_WEBHOOK_KEY);
+    showToast('已清除 Webhook', 'info');
+  }
+  closeModal('modal-feishu-notify');
+}
+
+async function sendFeishuNotify(title, content) {
+  const webhook = localStorage.getItem(FEISHU_WEBHOOK_KEY);
+  if (!webhook) return;
+
+  try {
+    await fetch(webhook, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        msg_type: 'interactive',
+        card: {
+          header: { title: { tag: 'plain_text', content: '📒 股东记账系统' }, template: 'blue' },
+          elements: [
+            { tag: 'div', text: { tag: 'lark_md', content: `**${title}**\n${content}` } },
+            { tag: 'div', text: { tag: 'plain_text', content: `操作人：${currentUser?.name || '--'}  时间：${new Date().toLocaleString('zh-CN')}` } }
+          ]
+        }
+      })
+    });
+  } catch(e) {
+    console.warn('飞书通知发送失败:', e);
+  }
+}
+
+// ================================================================
 // 审批中心
 // ================================================================
 async function loadApprovals() {
@@ -1434,6 +1855,20 @@ async function castVote(vote) {
         p_operator_id:    currentUser.id,
         p_operator_name:  currentUser.name
       });
+      await sendFeishuNotify(
+        `账期锁定已通过`,
+        `${ap.billing_period} 账期已锁定，共 ${approveCount} 票同意。`
+      );
+    } else if (newStatus === 'approved' && ap.approval_type === 'modify_locked') {
+      await sendFeishuNotify(
+        `修改申请已通过`,
+        `"${ap.title}" 已通过审批。`
+      );
+    } else if (newStatus === 'rejected') {
+      await sendFeishuNotify(
+        `审批已被拒绝`,
+        `"${ap.title}" 被拒绝（${rejectCount} 票拒绝）。`
+      );
     }
 
     showToast('投票成功', 'success');
@@ -1699,6 +2134,11 @@ async function checkPeriodLock() {
   });
 
   showToast(`已自动发起 ${period} 账期锁定审批`, 'info');
+
+  await sendFeishuNotify(
+    `账期锁定审批已发起`,
+    `${period} 账期锁定审批已自动发起，请及时投票。`
+  );
 }
 
 // ================================================================
