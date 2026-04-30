@@ -462,15 +462,15 @@
 ============================================================ -->
 <nav id="bottom-nav"
   class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-30 safe-bottom flex items-center justify-around">
-  <button onclick="switchPage('transactions')" data-page="transactions"
-    class="btn-nav flex flex-col items-center py-2 px-4 text-gray-400 min-h-[48px] min-w-[48px]">
-    <span class="text-xl">📋</span>
-    <span class="text-[10px] mt-0.5">流水</span>
-  </button>
   <button onclick="switchPage('dashboard')" data-page="dashboard"
     class="btn-nav flex flex-col items-center py-2 px-4 text-gray-400 min-h-[48px] min-w-[48px]">
     <span class="text-xl">📊</span>
     <span class="text-[10px] mt-0.5">仪表盘</span>
+  </button>
+  <button onclick="switchPage('transactions')" data-page="transactions"
+    class="btn-nav flex flex-col items-center py-2 px-4 text-gray-400 min-h-[48px] min-w-[48px]">
+    <span class="text-xl">📋</span>
+    <span class="text-[10px] mt-0.5">流水</span>
   </button>
   <button onclick="switchPage('accounts')" data-page="accounts"
     class="btn-nav flex flex-col items-center py-2 px-4 text-gray-400 min-h-[48px] min-w-[48px]">
@@ -1600,10 +1600,14 @@ async function loadAccountsPage() {
       <p class="text-3xl font-bold mt-2 ${parseFloat(a.current_balance) < 0 ? 'text-red-500' : 'text-gray-800'}">
         ${fmtMoney(a.current_balance)}
       </p>
-      <div class="flex items-center justify-end gap-1 mt-3 text-xs text-blue-500 font-medium opacity-70 group-hover:opacity-100">
+      <div class="flex items-center justify-between mt-3">
+      <button onclick="event.stopPropagation(); deleteAccount('${a.id}', '${escHtml(a.account_name)}')"
+        class="text-xs text-red-400 hover:text-red-600 transition-colors">删除账户</button>
+      <div class="flex items-center gap-1 text-xs text-blue-500 font-medium opacity-70 group-hover:opacity-100">
         <span>查看流水明细</span>
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
       </div>
+    </div>
     </div>
   `).join('');
 }
@@ -1630,6 +1634,18 @@ async function submitAccount(e) {
   }
 }
 
+async function deleteAccount(accountId, accountName) {
+  if (!confirm(`确定要删除账户「${accountName}」吗？\n\n仅无交易记录的账户才能删除。`)) return;
+  try {
+    const { error } = await sb.rpc('delete_account', { p_account_id: accountId });
+    if (error) throw error;
+    showToast(`已删除「${accountName}」`, 'success');
+    await loadAccounts();
+    loadAccountsPage();
+  } catch(err) {
+    showToast('删除失败：' + err.message, 'error');
+  }
+}
 // ================================================================
 // 审计日志（分页+筛选）
 // ================================================================
