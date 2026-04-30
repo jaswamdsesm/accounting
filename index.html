@@ -2055,9 +2055,9 @@ async function loadApprovals() {
           发起人：${escHtml(ap.app_users?.name || '--')} · ${fmtDateTime(ap.initiated_at)}
         </p>
         ${ap.reason ? `<p class="text-xs text-gray-500 mb-2">原因：${escHtml(ap.reason)}</p>` : ''}
-        <div class="flex items-center gap-3 text-xs text-gray-400 mb-3">
-          <span class="text-green-600 inline-flex items-center gap-0.5"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>${approveCount} 人同意</span>
-          <span class="text-red-500 inline-flex items-center gap-0.5"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>${rejectCount} 人拒绝</span>
+        <div class="flex items-center gap-3 text-xs text-gray-400 mb-3 whitespace-nowrap">
+          <span class="text-green-600 inline-flex items-center gap-0.5"><svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>${approveCount} 人同意</span>
+          <span class="text-red-500 inline-flex items-center gap-0.5"><svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>${rejectCount} 人拒绝</span>
           ${myVote ? `<span class="text-gray-400">（你已投票：${myVote.vote === 'approve' ? '同意' : '拒绝'}）</span>` : ''}
         </div>
         ${canVote ? `
