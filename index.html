@@ -130,6 +130,9 @@
     html.dark #toast-inner, body.dark #toast-inner { background-color: #1e293b !important; color: #e2e8f0 !important; }
     /* 夜间模式顶部筛选 sticky 背景 */
     html.dark .sticky, body.dark .sticky { background-color: #0f172a !important; }
+
+  /* 图片裁切器 */
+    #crop-canvas { touch-action: none; cursor: crosshair; }
   </style>
   <!-- 夜间模式加载时防闪烁 -->
   <script>
@@ -266,9 +269,13 @@
       <div class="flex items-center justify-between mb-3">
         <h2 class="text-lg font-bold text-gray-800">收支流水</h2>
         <div class="flex items-center gap-2">
+          <button onclick="exportTransactionsExcel()"
+            class="hidden md:flex btn-touch items-center gap-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm px-3 py-2 rounded-lg transition-colors">
+            <span class="flex items-center"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/></svg></span> 导出Excel
+          </button>
           <button onclick="openImportModal()"
             class="hidden md:flex btn-touch items-center gap-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm px-3 py-2 rounded-lg transition-colors">
-            <span class="flex items-center"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/></svg></span> 批量导入
+            <span class="flex items-center"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg></span> 批量导入
           </button>
           <!-- 电脑端：新增按钮在顶部；移动端：固定底部 -->
           <button onclick="openAddModal()" id="btn-add-desktop"
@@ -278,7 +285,7 @@
         </div>
       </div>
       <!-- 筛选栏 -->
-      <div class="flex flex-wrap gap-2 text-xs">
+      <div class="flex flex-wrap gap-2 text-xs items-center">
         <select id="filter-type" onchange="loadTransactions()"
           class="border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
           <option value="">全部类型</option>
@@ -292,9 +299,18 @@
           <option value="reversal">冲销</option>
           <option value="correction">补录</option>
         </select>
+        <select id="filter-account" onchange="loadTransactions()"
+          class="border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
+          <option value="">全部账户</option>
+        </select>
+        <input type="number" id="filter-amount-min" placeholder="最小金额" oninput="debounceSearch()"
+          class="border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 w-20 md:w-24" />
+        <span class="text-gray-300">~</span>
+        <input type="number" id="filter-amount-max" placeholder="最大金额" oninput="debounceSearch()"
+          class="border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 w-20 md:w-24" />
         <input type="date" id="filter-date-from" onchange="loadTransactions()" placeholder="起始日期"
           class="border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" />
-        <span class="text-gray-300 self-center">~</span>
+        <span class="text-gray-300">~</span>
         <input type="date" id="filter-date-to" onchange="loadTransactions()" placeholder="截止日期"
           class="border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" />
         <input type="text" id="filter-counterparty" placeholder="搜索交易对方..." oninput="debounceSearch()"
@@ -310,7 +326,7 @@
     </div>
 
     <!-- 电脑端：表格 -->
-    <div class="hidden md:block px-6 pb-6 overflow-x-auto">
+    <div class="hidden md:block px-6 pb-4 overflow-x-auto">
       <table class="data-table w-full text-sm border-collapse">
         <thead>
           <tr class="bg-gray-100 text-gray-500 text-xs uppercase tracking-wider">
@@ -338,12 +354,10 @@
       </table>
     </div>
 
-    <!-- 加载更多 -->
-    <div class="flex justify-center py-4">
-      <button id="btn-load-more" onclick="loadMore()"
-        class="hidden text-sm text-blue-500 hover:text-blue-700 px-4 py-2">
-        加载更多
-      </button>
+    <!-- 分页 -->
+    <div class="flex items-center justify-between px-4 md:px-6 pb-6 text-sm">
+      <p id="tx-count-info" class="text-xs text-gray-400"></p>
+      <div id="tx-pagination" class="flex items-center gap-1"></div>
     </div>
   </div>
 
@@ -606,9 +620,16 @@
 
         <!-- 交易说明 -->
         <div class="md:col-span-2">
-          <label class="block text-xs font-medium text-gray-500 mb-1">交易说明</label>
+          <div class="flex items-center justify-between">
+            <label class="block text-xs font-medium text-gray-500 mb-1">交易说明</label>
+            <button type="button" onclick="showDescriptionTemplates()"
+              class="text-[11px] text-blue-500 hover:text-blue-700 mb-1 flex items-center gap-0.5">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>常用模板
+            </button>
+          </div>
           <textarea id="tx-description" rows="2" placeholder="可选备注..."
             class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"></textarea>
+          <div id="desc-templates" class="flex flex-wrap gap-1.5 mt-1.5"></div>
         </div>
 
         <!-- 凭证附件 -->
@@ -616,10 +637,11 @@
           <label class="block text-xs font-medium text-gray-500 mb-1">凭证附件</label>
           <div id="attachment-area" class="border-2 border-dashed border-gray-200 rounded-lg p-4 text-center text-sm text-gray-400 cursor-pointer hover:border-blue-300 hover:text-blue-400 transition-colors"
             onclick="document.getElementById('tx-file').click()">
-            <span>点击上传图片或 PDF（可多选）</span>
+            <svg class="w-8 h-8 mx-auto mb-1 text-gray-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"/><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z"/></svg>
+            <span>点击上传图片（支持裁切压缩）或 PDF</span>
             <input type="file" id="tx-file" multiple accept="image/*,.pdf" class="hidden" onchange="handleFileSelect(event)" />
           </div>
-          <div id="file-preview" class="flex flex-wrap gap-2 mt-2"></div>
+          <div id="file-preview" class="flex flex-wrap gap-3 mt-2"></div>
         </div>
 
       </div>
@@ -814,6 +836,61 @@
 </div>
 
 <!-- ============================================================
+     图片裁切 模态框
+============================================================ -->
+<div id="modal-cropper" class="fixed inset-0 hidden modal-backdrop bg-black/50" style="z-index:70">
+  <div class="absolute inset-x-4 top-[5%] md:relative md:inset-auto md:mx-auto md:my-4 md:max-w-3xl
+              bg-white rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+    <div class="sticky top-0 bg-white px-5 py-4 border-b border-gray-100 flex items-center justify-between rounded-t-2xl z-10">
+      <h3 class="font-bold">裁切图片</h3>
+      <button onclick="cancelCrop()" class="text-gray-400 hover:text-gray-600 text-2xl w-8 h-8 flex items-center justify-center">×</button>
+    </div>
+    <div class="p-4">
+      <div class="relative bg-gray-100 rounded-lg overflow-hidden" style="max-height:60vh">
+        <canvas id="crop-canvas" class="block mx-auto max-w-full"></canvas>
+      </div>
+      <!-- 裁切工具栏 -->
+      <div class="flex items-center justify-between mt-4 gap-2 flex-wrap">
+        <div class="flex items-center gap-2 text-sm">
+          <label class="text-xs text-gray-500">输出尺寸：</label>
+          <select id="crop-preset" onchange="applyCropPreset()"
+            class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm bg-white focus:outline-none">
+            <option value="auto">自动（原始比例）</option>
+            <option value="1:1">1:1 正方形</option>
+            <option value="4:3">4:3 横版</option>
+            <option value="3:4">3:4 竖版</option>
+            <option value="16:9">16:9 宽屏</option>
+          </select>
+          <label class="text-xs text-gray-500 ml-2">质量：</label>
+          <select id="crop-quality" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm bg-white focus:outline-none">
+            <option value="0.8">标准 (80%)</option>
+            <option value="0.9" selected>高清 (90%)</option>
+            <option value="0.95">超清 (95%)</option>
+          </select>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="cancelCrop()"
+            class="btn-touch px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-500 hover:bg-gray-50">取消</button>
+          <button onclick="confirmCrop()"
+            class="btn-touch px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium">确认裁切</button>
+        </div>
+      </div>
+      <p class="text-[10px] text-gray-300 mt-2">在图片上拖拽选择裁切区域，拖拽边角调整大小，拖拽内部移动位置</p>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     图片预览 模态框（查看已上传凭证）
+============================================================ -->
+<div id="modal-image-viewer" class="fixed inset-0 hidden bg-black/90 z-[80] flex items-center justify-center"
+     onclick="closeImageViewer(event)">
+  <button onclick="closeImageViewer()" class="absolute top-4 right-4 text-white text-3xl w-10 h-10 flex items-center justify-center hover:text-gray-300 z-10">×</button>
+  <img id="image-viewer-img" class="max-w-[95vw] max-h-[90vh] object-contain rounded" />
+</div>
+
+
+<!-- ============================================================
      飞书通知设置 模态框
 ============================================================ -->
 <div id="modal-feishu-notify" class="fixed inset-0 hidden modal-backdrop bg-black/30" style="z-index:60">
@@ -856,8 +933,9 @@ const { createClient } = supabase;
 let sb;             // Supabase client
 let currentUser;    // { id, feishu_uid, name, role }
 let allAccounts = []; // 账户列表缓存
-let txPage = 0;
-const TX_PAGE_SIZE = 30;
+let txPage = 1;         // 当前页码（从1开始）
+let txTotalCount = 0;   // 总记录数
+const TX_PAGE_SIZE = 60;
 let txSortCol = 'transaction_date';
 let txSortAsc = false;
 let currentPage = 'dashboard';
@@ -868,6 +946,24 @@ let auditOffset = 0;
 const AUDIT_PAGE_SIZE = 50;
 let reversalAmount = 0; // 冲销确认金额
 let isDarkMode = false;  // 夜间模式状态
+let accountFilterId = null;  // 账户筛选（从余额页跳转时使用）
+let accountFilterName = null;
+
+// 收支备注模板
+const DESCRIPTION_TEMPLATES = [
+  '4月份服务费',
+  '原材料采购',
+  '办公用品采购',
+  '员工工资',
+  '快递物流费',
+  '水电物业费',
+  '银行手续费',
+  '客户回款',
+  '技术服务费',
+  '广告推广费',
+  '差旅报销',
+  '税费缴纳',
+];
 
 // ================================================================
 // 夜间模式
@@ -1074,7 +1170,7 @@ function switchPage(page) {
 
   // 按需加载
   if (page === 'dashboard')    loadDashboard();
-  if (page === 'transactions') { txPage = 0; loadTransactions(); }
+  if (page === 'transactions') { txPage = 1; accountFilterId = null; accountFilterName = null; populateFilterAccounts(); loadTransactions(); }
   if (page === 'accounts')     loadAccountsPage();
   if (page === 'audit')        loadAuditLogs();
   if (page === 'approvals')    loadApprovals();
@@ -1177,15 +1273,23 @@ async function loadDashboard() {
 }
 
 // ================================================================
-// 收支流水列表
+// 收支流水列表（分页 + 筛选）
 // ================================================================
-let txOffset = 0;
 
-async function loadTransactions(reset = true) {
-  if (reset) txOffset = 0;
+function populateFilterAccounts() {
+  const sel = document.getElementById('filter-account');
+  const currentVal = sel.value;
+  sel.innerHTML = '<option value="">全部账户</option>' +
+    allAccounts.map(a => `<option value="${a.id}">${escHtml(a.account_name)}</option>`).join('');
+  if (currentVal) sel.value = currentVal;
+}
 
+async function loadTransactions() {
   const typeFilter       = document.getElementById('filter-type').value;
   const recordTypeFilter = document.getElementById('filter-record-type').value;
+  const accountFilter    = document.getElementById('filter-account').value || accountFilterId || null;
+  const amountMin        = document.getElementById('filter-amount-min').value;
+  const amountMax        = document.getElementById('filter-amount-max').value;
   const dateFrom         = document.getElementById('filter-date-from').value;
   const dateTo           = document.getElementById('filter-date-to').value;
   const counterparty     = document.getElementById('filter-counterparty').value.trim();
@@ -1193,43 +1297,97 @@ async function loadTransactions(reset = true) {
   let query = sb.from('transactions')
     .select('*, accounts(account_name)', { count: 'exact' })
     .order(txSortCol, { ascending: txSortAsc })
-    .range(txOffset, txOffset + TX_PAGE_SIZE - 1);
+    .range((txPage - 1) * TX_PAGE_SIZE, txPage * TX_PAGE_SIZE - 1);
 
   if (typeFilter)       query = query.eq('tx_type', typeFilter);
   if (recordTypeFilter) query = query.eq('record_type', recordTypeFilter);
+  if (accountFilter)    query = query.eq('account_id', accountFilter);
   if (dateFrom)         query = query.gte('transaction_date', dateFrom);
   if (dateTo)           query = query.lte('transaction_date', dateTo);
   if (counterparty)     query = query.ilike('counterparty', `%${counterparty}%`);
+  if (amountMin)        query = query.gte('amount', parseFloat(amountMin));
+  if (amountMax)        query = query.lte('amount', parseFloat(amountMax));
 
   const { data: txs, count } = await query;
   const list = txs || [];
+  txTotalCount = count || 0;
 
   // 移动端卡片
-  const cardList = document.getElementById('tx-card-list');
-  if (reset) cardList.innerHTML = '';
-  cardList.innerHTML += list.map(t => renderTxCard(t)).join('');
+  document.getElementById('tx-card-list').innerHTML = list.map(t => renderTxCard(t)).join('');
 
   // 电脑端表格
-  const tbody = document.getElementById('tx-table-body');
-  if (reset) tbody.innerHTML = '';
-  tbody.innerHTML += list.map(t => renderTxRow(t)).join('');
+  document.getElementById('tx-table-body').innerHTML = list.map(t => renderTxRow(t)).join('');
 
-  // 加载更多按钮
-  const btnMore = document.getElementById('btn-load-more');
-  txOffset += list.length;
-  btnMore.classList.toggle('hidden', txOffset >= count);
+  // 分页信息
+  const start = txTotalCount === 0 ? 0 : (txPage - 1) * TX_PAGE_SIZE + 1;
+  const end = Math.min(txPage * TX_PAGE_SIZE, txTotalCount);
+  document.getElementById('tx-count-info').textContent = `第 ${start}-${end} 条，共 ${txTotalCount} 条`;
+
+  // 渲染分页按钮
+  renderPagination();
 }
 
-function loadMore() {
-  loadTransactions(false);
+function renderPagination() {
+  const totalPages = Math.ceil(txTotalCount / TX_PAGE_SIZE);
+  const container = document.getElementById('tx-pagination');
+  if (totalPages <= 1) { container.innerHTML = ''; return; }
+
+  let html = '';
+
+  // 上一页
+  html += `<button onclick="goToPage(${txPage - 1})" ${txPage <= 1 ? 'disabled' : ''}
+    class="px-2.5 py-1.5 rounded-lg text-xs border border-gray-200 ${txPage <= 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}">上一页</button>`;
+
+  // 页码按钮（最多显示7个，中间用省略号）
+  const pages = [];
+  if (totalPages <= 7) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+  } else {
+    pages.push(1);
+    if (txPage > 4) pages.push('...');
+    for (let i = Math.max(2, txPage - 1); i <= Math.min(totalPages - 1, txPage + 1); i++) pages.push(i);
+    if (txPage < totalPages - 3) pages.push('...');
+    pages.push(totalPages);
+  }
+
+  pages.forEach(p => {
+    if (p === '...') {
+      html += `<span class="px-1 text-gray-400 text-xs">...</span>`;
+    } else {
+      const isActive = p === txPage;
+      html += `<button onclick="goToPage(${p})"
+        class="px-2.5 py-1.5 rounded-lg text-xs ${isActive ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100 border border-gray-200'}">${p}</button>`;
+    }
+  });
+
+  // 下一页
+  html += `<button onclick="goToPage(${txPage + 1})" ${txPage >= totalPages ? 'disabled' : ''}
+    class="px-2.5 py-1.5 rounded-lg text-xs border border-gray-200 ${txPage >= totalPages ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}">下一页</button>`;
+
+  container.innerHTML = html;
+}
+
+function goToPage(page) {
+  const totalPages = Math.ceil(txTotalCount / TX_PAGE_SIZE);
+  if (page < 1 || page > totalPages) return;
+  txPage = page;
+  loadTransactions();
+  // 滚动回顶部
+  document.getElementById('page-transactions').scrollIntoView({ behavior: 'smooth' });
 }
 
 function clearFilters() {
   document.getElementById('filter-type').value = '';
   document.getElementById('filter-record-type').value = '';
+  document.getElementById('filter-account').value = '';
+  document.getElementById('filter-amount-min').value = '';
+  document.getElementById('filter-amount-max').value = '';
   document.getElementById('filter-date-from').value = '';
   document.getElementById('filter-date-to').value = '';
   document.getElementById('filter-counterparty').value = '';
+  accountFilterId = null;
+  accountFilterName = null;
+  txPage = 1;
   loadTransactions();
 }
 
@@ -1370,6 +1528,9 @@ function openAddModal(prefill = null) {
   document.getElementById('tx-record-type').value = prefill?.record_type || 'normal';
   document.getElementById('tx-related-serial').value = prefill?.related_serial || '';
   document.getElementById('file-preview').innerHTML = '';
+  // 清空备注模板
+  const templates = document.getElementById('desc-templates');
+  if (templates) templates.innerHTML = '';
 
   // 默认今天
   document.getElementById('tx-date').value = new Date().toISOString().slice(0, 10);
@@ -1757,7 +1918,111 @@ async function exportAuditCSV() {
 }
 
 // ================================================================
-// 批量导入账单
+// 流水导出 Excel
+// ================================================================
+async function exportTransactionsExcel() {
+  showToast('正在导出...', 'info');
+  try {
+    // 使用当前筛选条件查询所有数据（不分页）
+    const typeFilter       = document.getElementById('filter-type').value;
+    const recordTypeFilter = document.getElementById('filter-record-type').value;
+    const accountFilter    = document.getElementById('filter-account').value || accountFilterId || null;
+    const amountMin        = document.getElementById('filter-amount-min').value;
+    const amountMax        = document.getElementById('filter-amount-max').value;
+    const dateFrom         = document.getElementById('filter-date-from').value;
+    const dateTo           = document.getElementById('filter-date-to').value;
+    const counterparty     = document.getElementById('filter-counterparty').value.trim();
+
+    let query = sb.from('transactions')
+      .select('*, accounts(account_name)')
+      .order(txSortCol, { ascending: txSortAsc });
+
+    if (typeFilter)       query = query.eq('tx_type', typeFilter);
+    if (recordTypeFilter) query = query.eq('record_type', recordTypeFilter);
+    if (accountFilter)    query = query.eq('account_id', accountFilter);
+    if (dateFrom)         query = query.gte('transaction_date', dateFrom);
+    if (dateTo)           query = query.lte('transaction_date', dateTo);
+    if (counterparty)     query = query.ilike('counterparty', `%${counterparty}%`);
+    if (amountMin)        query = query.gte('amount', parseFloat(amountMin));
+    if (amountMax)        query = query.lte('amount', parseFloat(amountMax));
+
+    const { data: txs } = await query;
+    if (!txs || txs.length === 0) {
+      showToast('暂无数据可导出', 'warning');
+      return;
+    }
+
+    const recordTypeMap = { normal:'正常', reversal:'冲销', correction:'补录' };
+    const headers = ['流水号', '日期', '收支类型', '金额', '分类', '关联账户', '交易对方', '交易说明', '记录类型', '创建人', '创建时间'];
+    const rows = txs.map(t => [
+      t.serial_no || '',
+      t.transaction_date,
+      t.tx_type === 'income' ? '收入' : '支出',
+      Math.abs(parseFloat(t.amount) || 0),
+      t.category,
+      t.accounts?.account_name || '',
+      t.counterparty,
+      t.description || '',
+      recordTypeMap[t.record_type] || t.record_type,
+      t.creator_name || '',
+      t.created_at ? new Date(t.created_at).toLocaleString('zh-CN') : ''
+    ]);
+
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    ws['!cols'] = [
+      { wch: 14 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 14 },
+      { wch: 14 }, { wch: 16 }, { wch: 24 }, { wch: 10 }, { wch: 10 }, { wch: 18 }
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '收支流水');
+
+    const dateRange = dateFrom && dateTo ? `${dateFrom}_${dateTo}` : new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `收支流水_${dateRange}.xlsx`);
+
+    showToast(`已导出 ${txs.length} 条记录`, 'success');
+  } catch(err) {
+    showToast('导出失败：' + err.message, 'error');
+  }
+}
+
+// ================================================================
+// 收支备注模板
+// ================================================================
+function showDescriptionTemplates() {
+  const textarea = document.getElementById('tx-description');
+  const container = document.getElementById('desc-templates');
+
+  if (!container) {
+    // 首次调用时创建模板容器
+    const wrapper = textarea.parentElement;
+    wrapper.insertAdjacentHTML('afterend', `
+      <div id="desc-templates" class="flex flex-wrap gap-1.5 mt-1.5"></div>
+    `);
+  }
+
+  const el = document.getElementById('desc-templates');
+  if (el.children.length > 0) {
+    el.innerHTML = '';
+    return;
+  }
+
+  el.innerHTML = DESCRIPTION_TEMPLATES.map(t => `
+    <button type="button" onclick="fillDescription(this.textContent)"
+      class="text-[11px] px-2 py-1 rounded-md bg-gray-100 text-gray-600 hover:bg-blue-50 hover:text-blue-600 border border-gray-200 hover:border-blue-200 transition-colors">
+      ${escHtml(t)}
+    </button>
+  `).join('');
+}
+
+function fillDescription(text) {
+  const textarea = document.getElementById('tx-description');
+  // 如果已有内容，追加分隔符
+  if (textarea.value && !textarea.value.endsWith('；') && !textarea.value.endsWith(';')) {
+    textarea.value += '；';
+  }
+  textarea.value += text;
+}
 // ================================================================
 let importData = []; // 解析后的行数据
 
@@ -2198,26 +2463,326 @@ async function updateUserRole(userId, role) {
 }
 
 // ================================================================
-// 文件上传（Supabase Storage）
+// 文件上传（Supabase Storage）+ 图片裁切
 // ================================================================
-let pendingFiles = [];
+let pendingFiles = [];   // { file, previewUrl }
 
 async function handleFileSelect(e) {
   const files = Array.from(e.target.files);
   for (const file of files) {
-    // 图片自动压缩
-    if (file.type.startsWith('image/') && file.size > 500 * 1024) {
-      const compressed = await compressImage(file, 1200, 0.7);
-      pendingFiles.push(compressed);
+    if (file.type.startsWith('image/')) {
+      // 图片：进入裁切器
+      openCropper(file);
     } else {
-      pendingFiles.push(file);
+      // PDF 等非图片直接加入
+      pendingFiles.push({ file, previewUrl: null });
     }
   }
   renderFilePreview();
 }
 
-// 图片压缩：最大宽度 maxW，质量 quality
-function compressImage(file, maxW, quality) {
+// ================================================================
+// 图片裁切器（Canvas 实现，支持触摸）
+// ================================================================
+let cropState = null; // { img, canvas, ctx, crop, dragging, maxW, maxH }
+
+function openCropper(file) {
+  const img = new Image();
+  img.onload = () => {
+    const container = document.getElementById('crop-canvas').parentElement;
+    const maxW = container.clientWidth - 8;
+    const maxH = window.innerHeight * 0.55;
+
+    let scale = Math.min(maxW / img.width, maxH / img.height, 1);
+    const displayW = Math.round(img.width * scale);
+    const displayH = Math.round(img.height * scale);
+
+    const canvas = document.getElementById('crop-canvas');
+    canvas.width = displayW;
+    canvas.height = displayH;
+
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, displayW, displayH);
+
+    // 默认裁切框：80% 居中
+    const margin = 0.1;
+    const crop = {
+      x: Math.round(displayW * margin),
+      y: Math.round(displayH * margin),
+      w: Math.round(displayW * (1 - 2 * margin)),
+      h: Math.round(displayH * (1 - 2 * margin))
+    };
+
+    cropState = {
+      img, canvas, ctx, crop,
+      displayW, displayH, scale,
+      fileName: file.name,
+      dragging: null, // null | 'move' | 'tl' | 'tr' | 'bl' | 'br' | 't' | 'b' | 'l' | 'r'
+      dragStart: null,
+      dragCropStart: null
+    };
+
+    drawCropOverlay();
+    bindCropEvents();
+    openModal('modal-cropper');
+  };
+  img.src = URL.createObjectURL(file);
+}
+
+function drawCropOverlay() {
+  if (!cropState) return;
+  const { ctx, canvas, crop, displayW, displayH } = cropState;
+  const { x, y, w, h } = crop;
+
+  // 重绘原图
+  ctx.clearRect(0, 0, displayW, displayH);
+  ctx.drawImage(cropState.img, 0, 0, displayW, displayH);
+
+  // 暗色遮罩
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillRect(0, 0, displayW, y);
+  ctx.fillRect(0, y + h, displayW, displayH - y - h);
+  ctx.fillRect(0, y, x, h);
+  ctx.fillRect(x + w, y, displayW - x - w, h);
+
+  // 裁切边框
+  ctx.strokeStyle = '#3b82f6';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x, y, w, h);
+
+  // 三等分线
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+  ctx.lineWidth = 1;
+  for (let i = 1; i <= 2; i++) {
+    ctx.beginPath();
+    ctx.moveTo(x + w * i / 3, y);
+    ctx.lineTo(x + w * i / 3, y + h);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x, y + h * i / 3);
+    ctx.lineTo(x + w, y + h * i / 3);
+    ctx.stroke();
+  }
+
+  // 四角把手
+  const handleSize = 12;
+  ctx.fillStyle = '#3b82f6';
+  const corners = [[x, y], [x + w, y], [x, y + h], [x + w, y + h]];
+  corners.forEach(([cx, cy]) => {
+    ctx.fillRect(cx - handleSize/2, cy - handleSize/2, handleSize, handleSize);
+  });
+
+  // 边中把手
+  const edgeHandles = [[x + w/2, y], [x + w/2, y + h], [x, y + h/2], [x + w, y + h/2]];
+  edgeHandles.forEach(([cx, cy]) => {
+    ctx.fillRect(cx - handleSize/2, cy - handleSize/2, handleSize, handleSize);
+  });
+}
+
+function getCanvasPos(e) {
+  const canvas = cropState.canvas;
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  let clientX, clientY;
+  if (e.touches && e.touches.length > 0) {
+    clientX = e.touches[0].clientX;
+    clientY = e.touches[0].clientY;
+  } else if (e.changedTouches && e.changedTouches.length > 0) {
+    clientX = e.changedTouches[0].clientX;
+    clientY = e.changedTouches[0].clientY;
+  } else {
+    clientX = e.clientX;
+    clientY = e.clientY;
+  }
+  return {
+    x: (clientX - rect.left) * scaleX,
+    y: (clientY - rect.top) * scaleY
+  };
+}
+
+function hitTest(pos) {
+  if (!cropState) return null;
+  const { crop } = cropState;
+  const { x, y, w, h } = crop;
+  const threshold = 15;
+
+  // 四角
+  if (Math.abs(pos.x - x) < threshold && Math.abs(pos.y - y) < threshold) return 'tl';
+  if (Math.abs(pos.x - (x+w)) < threshold && Math.abs(pos.y - y) < threshold) return 'tr';
+  if (Math.abs(pos.x - x) < threshold && Math.abs(pos.y - (y+h)) < threshold) return 'bl';
+  if (Math.abs(pos.x - (x+w)) < threshold && Math.abs(pos.y - (y+h)) < threshold) return 'br';
+
+  // 边中
+  if (Math.abs(pos.x - (x+w/2)) < threshold && Math.abs(pos.y - y) < threshold) return 't';
+  if (Math.abs(pos.x - (x+w/2)) < threshold && Math.abs(pos.y - (y+h)) < threshold) return 'b';
+  if (Math.abs(pos.x - x) < threshold && Math.abs(pos.y - (y+h/2)) < threshold) return 'l';
+  if (Math.abs(pos.x - (x+w)) < threshold && Math.abs(pos.y - (y+h/2)) < threshold) return 'r';
+
+  // 内部
+  if (pos.x > x && pos.x < x+w && pos.y > y && pos.y < y+h) return 'move';
+
+  return null;
+}
+
+function bindCropEvents() {
+  const canvas = cropState.canvas;
+
+  const onStart = (e) => {
+    e.preventDefault();
+    const pos = getCanvasPos(e);
+    const handle = hitTest(pos);
+    if (!handle) return;
+    cropState.dragging = handle;
+    cropState.dragStart = pos;
+    cropState.dragCropStart = { ...cropState.crop };
+  };
+
+  const onMove = (e) => {
+    if (!cropState || !cropState.dragging) return;
+    e.preventDefault();
+    const pos = getCanvasPos(e);
+    const { dragging, dragStart, dragCropStart, displayW, displayH } = cropState;
+    const dx = pos.x - dragStart.x;
+    const dy = pos.y - dragStart.y;
+    const c = { ...dragCropStart };
+    const minSize = 30;
+
+    if (dragging === 'move') {
+      c.x = Math.max(0, Math.min(displayW - c.w, dragCropStart.x + dx));
+      c.y = Math.max(0, Math.min(displayH - c.h, dragCropStart.y + dy));
+    } else {
+      // 边角拖拽
+      if (dragging.includes('l')) {
+        c.w = Math.max(minSize, dragCropStart.w - dx);
+        c.x = dragCropStart.x + dragCropStart.w - c.w;
+      }
+      if (dragging.includes('r')) {
+        c.w = Math.max(minSize, dragCropStart.w + dx);
+      }
+      if (dragging.includes('t')) {
+        c.h = Math.max(minSize, dragCropStart.h - dy);
+        c.y = dragCropStart.y + dragCropStart.h - c.h;
+      }
+      if (dragging.includes('b')) {
+        c.h = Math.max(minSize, dragCropStart.h + dy);
+      }
+      // 边界约束
+      c.x = Math.max(0, c.x);
+      c.y = Math.max(0, c.y);
+      if (c.x + c.w > displayW) c.w = displayW - c.x;
+      if (c.y + c.h > displayH) c.h = displayH - c.y;
+    }
+
+    cropState.crop = c;
+    drawCropOverlay();
+  };
+
+  const onEnd = () => {
+    if (cropState) cropState.dragging = null;
+  };
+
+  // 鼠标事件
+  canvas.onmousedown = onStart;
+  canvas.onmousemove = onMove;
+  canvas.onmouseup = onEnd;
+  canvas.onmouseleave = onEnd;
+
+  // 触摸事件
+  canvas.ontouchstart = onStart;
+  canvas.ontouchmove = onMove;
+  canvas.ontouchend = onEnd;
+  canvas.ontouchcancel = onEnd;
+}
+
+function applyCropPreset() {
+  if (!cropState) return;
+  const preset = document.getElementById('crop-preset').value;
+  const { displayW, displayH } = cropState;
+
+  if (preset === 'auto') {
+    // 80% 居中
+    const margin = 0.1;
+    cropState.crop = {
+      x: Math.round(displayW * margin),
+      y: Math.round(displayH * margin),
+      w: Math.round(displayW * (1 - 2 * margin)),
+      h: Math.round(displayH * (1 - 2 * margin))
+    };
+  } else {
+    const [rw, rh] = preset.split(':').map(Number);
+    const ratio = rw / rh;
+    const margin = 0.1;
+    const availW = displayW * (1 - 2 * margin);
+    const availH = displayH * (1 - 2 * margin);
+
+    let cropW, cropH;
+    if (availW / availH > ratio) {
+      cropH = availH;
+      cropW = cropH * ratio;
+    } else {
+      cropW = availW;
+      cropH = cropW / ratio;
+    }
+    cropState.crop = {
+      x: Math.round((displayW - cropW) / 2),
+      y: Math.round((displayH - cropH) / 2),
+      w: Math.round(cropW),
+      h: Math.round(cropH)
+    };
+  }
+  drawCropOverlay();
+}
+
+function cancelCrop() {
+  cropState = null;
+  closeModal('modal-cropper');
+}
+
+function confirmCrop() {
+  if (!cropState) return;
+
+  const { img, crop, scale, fileName } = cropState;
+  const quality = parseFloat(document.getElementById('crop-quality').value);
+
+  // 从原图坐标换算
+  const srcX = crop.x / scale;
+  const srcY = crop.y / scale;
+  const srcW = crop.w / scale;
+  const srcH = crop.h / scale;
+
+  // 限制最大输出尺寸（2000px），保持清晰度
+  const maxOut = 2000;
+  let outW = srcW, outH = srcH;
+  if (outW > maxOut || outH > maxOut) {
+    const s = Math.min(maxOut / outW, maxOut / outH);
+    outW = Math.round(outW * s);
+    outH = Math.round(outH * s);
+  }
+
+  const outCanvas = document.createElement('canvas');
+  outCanvas.width = outW;
+  outCanvas.height = outH;
+  const outCtx = outCanvas.getContext('2d');
+
+  // 使用高质量缩放
+  outCtx.imageSmoothingEnabled = true;
+  outCtx.imageSmoothingQuality = 'high';
+  outCtx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, outW, outH);
+
+  outCanvas.toBlob((blob) => {
+    if (!blob) { showToast('裁切失败', 'error'); return; }
+    const croppedFile = new File([blob], fileName, { type: 'image/jpeg' });
+    const previewUrl = URL.createObjectURL(blob);
+    pendingFiles.push({ file: croppedFile, previewUrl });
+    renderFilePreview();
+    cancelCrop();
+    showToast('图片已裁切并压缩', 'success');
+  }, 'image/jpeg', quality);
+}
+
+// 智能压缩（不裁切时的压缩，保持清晰）
+function compressImageSmart(file) {
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = (ev) => {
@@ -2225,16 +2790,27 @@ function compressImage(file, maxW, quality) {
       img.onload = () => {
         const canvas = document.createElement('canvas');
         let w = img.width, h = img.height;
-        if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+
+        // 超过 2000px 才缩放
+        const maxDim = 2000;
+        if (w > maxDim || h > maxDim) {
+          const s = Math.min(maxDim / w, maxDim / h);
+          w = Math.round(w * s);
+          h = Math.round(h * s);
+        }
+
         canvas.width = w;
         canvas.height = h;
         const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
         ctx.drawImage(img, 0, 0, w, h);
+
         canvas.toBlob(
           (blob) => {
             resolve(new File([blob], file.name, { type: 'image/jpeg' }));
           },
-          'image/jpeg', quality
+          'image/jpeg', 0.9
         );
       };
       img.src = ev.target.result;
@@ -2243,27 +2819,64 @@ function compressImage(file, maxW, quality) {
   });
 }
 
+// ================================================================
+// 文件预览（支持点击查看大图）
+// ================================================================
 function renderFilePreview() {
   const preview = document.getElementById('file-preview');
-  preview.innerHTML = pendingFiles.map((f, i) => `
-    <div class="flex items-center gap-1 text-xs bg-gray-100 rounded px-2 py-1">
-      <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
-      <span class="max-w-[100px] truncate">${escHtml(f.name)}</span>
-      <span class="text-gray-300">${(f.size / 1024).toFixed(0)}KB</span>
-      <button type="button" onclick="removeFile(${i})" class="text-red-400 ml-1">×</button>
-    </div>
-  `).join('');
+
+  preview.innerHTML = pendingFiles.map((item, i) => {
+    const f = item.file;
+    const isImage = f.type.startsWith('image/');
+    if (isImage && item.previewUrl) {
+      return `
+        <div class="relative group">
+          <img src="${item.previewUrl}" onclick="openImageViewer('${item.previewUrl}')"
+            class="w-16 h-16 object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-80 transition-opacity" />
+          <button type="button" onclick="removeFile(${i})"
+            class="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">×</button>
+          <p class="text-[10px] text-gray-400 mt-0.5 text-center w-16 truncate">${(f.size / 1024).toFixed(0)}KB</p>
+        </div>
+      `;
+    }
+    // 非图片或无预览
+    return `
+      <div class="flex items-center gap-1 text-xs bg-gray-100 rounded-lg px-2 py-1.5 group relative">
+        <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+        <span class="max-w-[100px] truncate">${escHtml(f.name)}</span>
+        <span class="text-gray-300">${(f.size / 1024).toFixed(0)}KB</span>
+        <button type="button" onclick="removeFile(${i})" class="text-red-400 ml-1">×</button>
+      </div>
+    `;
+  }).join('');
 }
 
 function removeFile(index) {
+  if (pendingFiles[index].previewUrl) {
+    URL.revokeObjectURL(pendingFiles[index].previewUrl);
+  }
   pendingFiles.splice(index, 1);
   renderFilePreview();
+}
+
+// 图片预览大图
+function openImageViewer(url) {
+  document.getElementById('image-viewer-img').src = url;
+  document.getElementById('modal-image-viewer').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeImageViewer(e) {
+  if (e && e.target !== e.currentTarget) return;
+  document.getElementById('modal-image-viewer').classList.add('hidden');
+  document.body.style.overflow = '';
 }
 
 async function uploadFiles() {
   if (!pendingFiles.length) return [];
   const urls = [];
-  for (const file of pendingFiles) {
+  for (const item of pendingFiles) {
+    const file = item.file;
     const path = `vouchers/${currentUser.id}/${Date.now()}-${file.name}`;
     const { data, error } = await sb.storage.from('attachments').upload(path, file);
     if (!error) {
@@ -2399,64 +3012,23 @@ async function checkPeriodLock() {
 }
 
 // ================================================================
-// 账户流水详情
+// 账户流水详情（跳转筛选）
 // ================================================================
 function viewAccountTransactions(accountId, accountName) {
-  // 切换到流水页面，自动筛选该账户
   switchPage('transactions');
-  // 用 date range 模式，清空日期筛选，通过 ilike 筛账户名（简单方案）
   document.getElementById('filter-counterparty').value = '';
   document.getElementById('filter-type').value = '';
   document.getElementById('filter-record-type').value = '';
+  document.getElementById('filter-amount-min').value = '';
+  document.getElementById('filter-amount-max').value = '';
   document.getElementById('filter-date-from').value = '';
   document.getElementById('filter-date-to').value = '';
-  showToast(`正在加载「${accountName}」的流水`, 'info');
-  loadAccountTxList(accountId, accountName);
-}
-
-let accountFilterId = null;
-let accountFilterName = null;
-
-async function loadAccountTxList(accountId, accountName) {
+  document.getElementById('filter-account').value = accountId;
   accountFilterId = accountId;
   accountFilterName = accountName;
-  txOffset = 0;
-
-  const { data: txs, count } = await sb.from('transactions')
-    .select('*, accounts(account_name)', { count: 'exact' })
-    .eq('account_id', accountId)
-    .order('transaction_date', { ascending: false })
-    .range(0, TX_PAGE_SIZE - 1);
-
-  const list = txs || [];
-  document.getElementById('tx-card-list').innerHTML = list.map(t => renderTxCard(t)).join('');
-  document.getElementById('tx-table-body').innerHTML = list.map(t => renderTxRow(t)).join('');
-  txOffset = list.length;
-  document.getElementById('btn-load-more').classList.toggle('hidden', txOffset >= count);
-}
-
-// 覆盖 loadMore 以支持账户筛选
-const _originalLoadMore = loadMore;
-window.loadMore = function() {
-  if (accountFilterId) {
-    loadMoreAccountTx();
-  } else {
-    _originalLoadMore();
-  }
-};
-
-async function loadMoreAccountTx() {
-  const { data: txs, count } = await sb.from('transactions')
-    .select('*, accounts(account_name)', { count: 'exact' })
-    .eq('account_id', accountFilterId)
-    .order('transaction_date', { ascending: false })
-    .range(txOffset, txOffset + TX_PAGE_SIZE - 1);
-
-  const list = txs || [];
-  document.getElementById('tx-card-list').innerHTML += list.map(t => renderTxCard(t)).join('');
-  document.getElementById('tx-table-body').innerHTML += list.map(t => renderTxRow(t)).join('');
-  txOffset += list.length;
-  document.getElementById('btn-load-more').classList.toggle('hidden', txOffset >= count);
+  txPage = 1;
+  showToast(`正在加载「${accountName}」的流水`, 'info');
+  loadTransactions();
 }
 
 // ================================================================
