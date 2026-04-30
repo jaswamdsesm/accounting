@@ -1999,10 +1999,13 @@ function saveFeishuWebhook() {
 
 async function sendFeishuNotify(title, content) {
   const webhook = localStorage.getItem(FEISHU_WEBHOOK_KEY);
-  if (!webhook) return;
+  if (!webhook) {
+    console.warn('飞书通知未配置 Webhook');
+    return;
+  }
 
   try {
-    await fetch(webhook, {
+    const resp = await fetch(webhook, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -2016,6 +2019,10 @@ async function sendFeishuNotify(title, content) {
         }
       })
     });
+    const result = await resp.json();
+    if (result.code !== 0) {
+      console.warn('飞书通知返回错误:', result);
+    }
   } catch(e) {
     console.warn('飞书通知发送失败:', e);
   }
