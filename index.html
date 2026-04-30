@@ -194,18 +194,18 @@
     </button>
   </nav>
   <!-- 夜间模式 / 个人设置入口 -->
-  <div class="border-t border-gray-100 px-5 py-3 space-y-2">
+  <div class="border-t border-gray-100 px-4 py-4 space-y-1">
     <button onclick="toggleDarkMode()" id="btn-dark-mode"
-      class="nav-btn w-full text-left text-xs text-gray-400 flex items-center gap-2 hover:text-gray-600">
-      <span id="dark-mode-icon">🌙</span><span id="dark-mode-text">夜间模式</span>
+      class="nav-btn w-full text-left text-sm text-gray-600 flex items-center gap-2.5 py-2 px-2 rounded-lg hover:bg-gray-100 transition-colors">
+      <span id="dark-mode-icon" class="text-base">🌙</span><span id="dark-mode-text">夜间模式</span>
     </button>
     <button onclick="switchPage('profile')" data-page="profile"
-      class="nav-btn w-full text-left text-xs text-gray-400 flex items-center gap-2 hover:text-gray-600">
-      <span>👤</span><span>个人设置</span>
+      class="nav-btn w-full text-left text-sm text-gray-600 flex items-center gap-2.5 py-2 px-2 rounded-lg hover:bg-gray-100 transition-colors">
+      <span class="text-base">👤</span><span>个人设置</span>
     </button>
     <button onclick="switchPage('settings')" data-page="settings"
-      class="nav-btn w-full text-left text-xs text-gray-400 flex items-center gap-2 hover:text-gray-600">
-      <span>⚙️</span><span>角色配置</span>
+      class="nav-btn w-full text-left text-sm text-gray-600 flex items-center gap-2.5 py-2 px-2 rounded-lg hover:bg-gray-100 transition-colors">
+      <span class="text-base">⚙️</span><span>角色配置</span>
     </button>
   </div>
 </aside>
@@ -492,18 +492,18 @@
 <!-- 移动端：更多菜单 -->
 <div id="mobile-menu" class="fixed inset-0 hidden z-40">
   <div class="absolute inset-0 bg-black/30" onclick="closeMobileMenu()"></div>
-  <div class="absolute bottom-[56px] right-3 bg-white rounded-xl shadow-xl border border-gray-100 py-2 w-40">
-    <button onclick="toggleDarkMode(); closeMobileMenu()" class="w-full text-left px-4 py-3 text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-2">
-      <span>🌙</span> 夜间模式
+  <div class="absolute bottom-[56px] right-3 bg-white rounded-xl shadow-xl border border-gray-100 py-2 w-44">
+    <button onclick="toggleDarkMode(); closeMobileMenu()" class="w-full text-left px-4 py-3.5 text-sm text-gray-700 font-medium hover:bg-gray-50 flex items-center gap-2.5 transition-colors">
+      <span class="text-base">🌙</span> 夜间模式
     </button>
-    <button onclick="closeMobileMenu(); switchPage('audit')" class="w-full text-left px-4 py-3 text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-2">
-      <span>🔍</span> 审计日志
+    <button onclick="closeMobileMenu(); switchPage('audit')" class="w-full text-left px-4 py-3.5 text-sm text-gray-700 font-medium hover:bg-gray-50 flex items-center gap-2.5 transition-colors">
+      <span class="text-base">🔍</span> 审计日志
     </button>
-    <button onclick="closeMobileMenu(); switchPage('profile')" class="w-full text-left px-4 py-3 text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-2">
-      <span>👤</span> 个人设置
+    <button onclick="closeMobileMenu(); switchPage('profile')" class="w-full text-left px-4 py-3.5 text-sm text-gray-700 font-medium hover:bg-gray-50 flex items-center gap-2.5 transition-colors">
+      <span class="text-base">👤</span> 个人设置
     </button>
-    <button onclick="closeMobileMenu(); switchPage('settings')" class="w-full text-left px-4 py-3 text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-2">
-      <span>⚙️</span> 角色配置
+    <button onclick="closeMobileMenu(); switchPage('settings')" class="w-full text-left px-4 py-3.5 text-sm text-gray-700 font-medium hover:bg-gray-50 flex items-center gap-2.5 transition-colors">
+      <span class="text-base">⚙️</span> 角色配置
     </button>
   </div>
 </div>
