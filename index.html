@@ -14,12 +14,6 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <script>
-    // 强制刷新缓存：如果 URL 没有 v 参数，自动加上当前时间戳重载
-    if (!location.search.includes('v=')) {
-      location.replace(location.pathname + '?v=' + Date.now());
-    }
-  </script>
   <script src="https://lf-scm-cn.feishucdn.com/lark/op/h5-js-sdk-1.5.44.js"></script>
 
   <script>
@@ -186,14 +180,17 @@
       <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
         <p class="text-xs text-gray-400 mb-1">本期收入</p>
         <p id="dash-income" class="text-2xl md:text-3xl font-bold text-green-600">--</p>
+        <p id="dash-income-compare" class="text-[11px] mt-1"></p>
       </div>
       <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
         <p class="text-xs text-gray-400 mb-1">本期支出</p>
         <p id="dash-expense" class="text-2xl md:text-3xl font-bold text-red-500">--</p>
+        <p id="dash-expense-compare" class="text-[11px] mt-1"></p>
       </div>
       <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
         <p class="text-xs text-gray-400 mb-1">净额</p>
         <p id="dash-net" class="text-2xl md:text-3xl font-bold text-blue-600">--</p>
+        <p id="dash-net-compare" class="text-[11px] mt-1"></p>
       </div>
     </div>
 
@@ -243,8 +240,13 @@
           <option value="reversal">冲销</option>
           <option value="correction">补录</option>
         </select>
-        <input type="month" id="filter-period" onchange="loadTransactions()"
+        <input type="date" id="filter-date-from" onchange="loadTransactions()" placeholder="起始日期"
           class="border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" />
+        <span class="text-gray-300 self-center">~</span>
+        <input type="date" id="filter-date-to" onchange="loadTransactions()" placeholder="截止日期"
+          class="border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" />
+        <input type="text" id="filter-counterparty" placeholder="搜索交易对方..." oninput="debounceSearch()"
+          class="border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 w-28 md:w-36" />
         <button onclick="clearFilters()"
           class="text-gray-400 hover:text-gray-600 px-2 py-1.5">重置</button>
       </div>
@@ -316,6 +318,19 @@
         📥 导出 CSV
       </button>
     </div>
+    <div class="flex flex-wrap gap-2 text-xs mb-3">
+      <select id="audit-filter-type" onchange="loadAuditLogs()"
+        class="border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
+        <option value="">全部类型</option>
+        <option value="create">新增</option>
+        <option value="reversal">冲销</option>
+        <option value="correction">补录</option>
+        <option value="lock">锁定</option>
+        <option value="unlock">解锁</option>
+      </select>
+      <input type="text" id="audit-filter-operator" placeholder="搜索操作人..." oninput="debounceAuditSearch()"
+        class="border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 w-28" />
+    </div>
     <div class="overflow-x-auto">
       <table class="data-table w-full text-xs md:text-sm border-collapse">
         <thead>
@@ -331,6 +346,13 @@
         </thead>
         <tbody id="audit-table-body"></tbody>
       </table>
+    </div>
+    <div class="flex justify-center py-4 gap-3">
+      <button id="audit-load-more" onclick="loadMoreAudit()"
+        class="hidden text-sm text-blue-500 hover:text-blue-700 px-4 py-2">
+        加载更多
+      </button>
+      <p id="audit-count-info" class="text-xs text-gray-400"></p>
     </div>
   </div>
 
@@ -403,7 +425,33 @@
     <span class="text-xl">💰</span>
     <span class="text-[10px] mt-0.5">余额</span>
   </button>
+  <button onclick="switchPage('approvals')" data-page="approvals"
+    class="btn-nav flex flex-col items-center py-2 px-4 text-gray-400 min-h-[48px] min-w-[48px]">
+    <span class="text-xl">✅</span>
+    <span class="text-[10px] mt-0.5">审批</span>
+  </button>
+  <button onclick="openMobileMenu()" id="btn-more-mobile"
+    class="btn-nav flex flex-col items-center py-2 px-4 text-gray-400 min-h-[48px] min-w-[48px]">
+    <span class="text-xl">☰</span>
+    <span class="text-[10px] mt-0.5">更多</span>
+  </button>
 </nav>
+
+<!-- 移动端：更多菜单 -->
+<div id="mobile-menu" class="fixed inset-0 hidden z-40">
+  <div class="absolute inset-0 bg-black/30" onclick="closeMobileMenu()"></div>
+  <div class="absolute bottom-[56px] right-3 bg-white rounded-xl shadow-xl border border-gray-100 py-2 w-40">
+    <button onclick="closeMobileMenu(); switchPage('audit')" class="w-full text-left px-4 py-3 text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-2">
+      <span>🔍</span> 审计日志
+    </button>
+    <button onclick="closeMobileMenu(); switchPage('profile')" class="w-full text-left px-4 py-3 text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-2">
+      <span>👤</span> 个人设置
+    </button>
+    <button onclick="closeMobileMenu(); switchPage('settings')" class="w-full text-left px-4 py-3 text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-2">
+      <span>⚙️</span> 角色配置
+    </button>
+  </div>
+</div>
 
 <!-- 移动端：新增按钮（固定底部，在底部导航上方） -->
 <button onclick="openAddModal()" id="btn-add-mobile"
@@ -577,11 +625,18 @@
     <p class="text-sm text-gray-500 mb-3">将对以下记录执行冲销操作，此操作不可撤销：</p>
     <div id="reversal-preview" class="bg-red-50 rounded-lg p-3 text-sm mb-4"></div>
     <input type="hidden" id="reversal-tx-id" />
+    <input type="hidden" id="reversal-confirm-amount" />
+    <div class="mb-3">
+      <label class="block text-xs text-red-500 font-medium mb-1">请输入金额以确认冲销</label>
+      <input type="text" id="reversal-amount-input" placeholder="输入金额后按钮才会激活"
+        class="w-full border border-red-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+        oninput="checkReversalConfirm()" />
+    </div>
     <div class="flex gap-3">
       <button onclick="closeModal('modal-reversal')"
         class="flex-1 btn-bottom rounded-xl border border-gray-200 text-sm text-gray-500">取消</button>
-      <button onclick="confirmReversal()"
-        class="flex-1 btn-bottom rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-medium">确认冲销</button>
+      <button onclick="confirmReversal()" id="btn-confirm-reversal" disabled
+        class="flex-1 btn-bottom rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed transition-colors">确认冲销</button>
     </div>
   </div>
 </div>
@@ -754,6 +809,11 @@ let txSortCol = 'transaction_date';
 let txSortAsc = false;
 let currentPage = 'dashboard';
 let loginSource = '';  // 调试：登录状态信息
+let searchTimer = null;
+let auditSearchTimer = null;
+let auditOffset = 0;
+const AUDIT_PAGE_SIZE = 50;
+let reversalAmount = 0; // 冲销确认金额
 
 // ================================================================
 // 初始化入口
@@ -761,7 +821,6 @@ let loginSource = '';  // 调试：登录状态信息
 async function init() {
   sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
-  loginSource = '';
   try {
     await feishuLogin();
   } catch(e) {
@@ -840,6 +899,7 @@ async function feishuLogin() {
     loginSource += ', requestAuthCode=' + typeof ttObj.requestAuthCode + ', requestAccess=' + typeof ttObj.requestAccess;
 
     // 直接使用 requestAuthCode（兼容性最好）
+    // eslint-disable-next-line no-unused-vars
     if (ttObj.requestAuthCode) {
       ttObj.requestAuthCode({
         appId: FEISHU_APP_ID,
@@ -949,6 +1009,7 @@ function initDashboardPeriod() {
 async function loadDashboard() {
   const period = document.getElementById('dash-period').value;
 
+  // 本期数据
   const { data: txs } = await sb.from('transactions')
     .select('tx_type, amount, category, record_type')
     .eq('billing_period', period);
@@ -971,6 +1032,33 @@ async function loadDashboard() {
   const netEl = document.getElementById('dash-net');
   netEl.textContent = fmtMoney(net);
   netEl.className = `text-2xl md:text-3xl font-bold ${net >= 0 ? 'text-blue-600' : 'text-red-500'}`;
+
+  // 上期数据（环比）
+  const [y, m] = period.split('-').map(Number);
+  const lastPeriod = m === 1 ? `${y-1}-12` : `${y}-${String(m-1).padStart(2,'0')}`;
+  const { data: lastTxs } = await sb.from('transactions')
+    .select('tx_type, amount, record_type')
+    .eq('billing_period', lastPeriod);
+
+  let lastIncome = 0, lastExpense = 0, lastNet = 0;
+  (lastTxs || []).forEach(t => {
+    const amt = parseFloat(t.amount) || 0;
+    if (t.tx_type === 'income') lastIncome += amt;
+    else lastExpense += amt;
+  });
+  lastNet = lastIncome - lastExpense;
+
+  // 环比显示
+  function compareTag(current, last) {
+    if (last === 0) return '';
+    const pct = ((current - last) / Math.abs(last) * 100).toFixed(1);
+    const isUp = current > last;
+    const color = current >= 0 ? (isUp ? 'text-green-500' : 'text-red-400') : (isUp ? 'text-green-400' : 'text-red-500');
+    return `<span class="${color}">环比 ${isUp ? '↑' : '↓'} ${Math.abs(pct)}%（上期 ${fmtMoney(last)}）</span>`;
+  }
+  document.getElementById('dash-income-compare').innerHTML = compareTag(income, lastIncome);
+  document.getElementById('dash-expense-compare').innerHTML = compareTag(expense, lastExpense);
+  document.getElementById('dash-net-compare').innerHTML = compareTag(net, lastNet);
 
   // 账户余额卡片
   const accContainer = document.getElementById('dash-accounts');
@@ -1013,7 +1101,9 @@ async function loadTransactions(reset = true) {
 
   const typeFilter       = document.getElementById('filter-type').value;
   const recordTypeFilter = document.getElementById('filter-record-type').value;
-  const periodFilter     = document.getElementById('filter-period').value;
+  const dateFrom         = document.getElementById('filter-date-from').value;
+  const dateTo           = document.getElementById('filter-date-to').value;
+  const counterparty     = document.getElementById('filter-counterparty').value.trim();
 
   let query = sb.from('transactions')
     .select('*, accounts(account_name)', { count: 'exact' })
@@ -1022,7 +1112,9 @@ async function loadTransactions(reset = true) {
 
   if (typeFilter)       query = query.eq('tx_type', typeFilter);
   if (recordTypeFilter) query = query.eq('record_type', recordTypeFilter);
-  if (periodFilter)     query = query.eq('billing_period', periodFilter);
+  if (dateFrom)         query = query.gte('transaction_date', dateFrom);
+  if (dateTo)           query = query.lte('transaction_date', dateTo);
+  if (counterparty)     query = query.ilike('counterparty', `%${counterparty}%`);
 
   const { data: txs, count } = await query;
   const list = txs || [];
@@ -1050,8 +1142,15 @@ function loadMore() {
 function clearFilters() {
   document.getElementById('filter-type').value = '';
   document.getElementById('filter-record-type').value = '';
-  document.getElementById('filter-period').value = '';
+  document.getElementById('filter-date-from').value = '';
+  document.getElementById('filter-date-to').value = '';
+  document.getElementById('filter-counterparty').value = '';
   loadTransactions();
+}
+
+function debounceSearch() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => loadTransactions(), 400);
 }
 
 function sortBy(col) {
@@ -1284,18 +1383,28 @@ async function openReversal(txId) {
     .single();
 
   document.getElementById('reversal-tx-id').value = txId;
+  reversalAmount = Math.abs(parseFloat(tx.amount));
+  document.getElementById('reversal-confirm-amount').value = reversalAmount;
   document.getElementById('reversal-preview').innerHTML = `
     <div class="space-y-1">
       <div><span class="text-gray-400">流水号：</span>${escHtml(tx.serial_no)}</div>
       <div><span class="text-gray-400">金额：</span>
-        <span class="font-bold text-red-600">${tx.tx_type === 'income' ? '+' : '-'}${fmtMoney(Math.abs(tx.amount))}</span>
+        <span class="font-bold text-red-600">${tx.tx_type === 'income' ? '+' : '-'}${fmtMoney(reversalAmount)}</span>
       </div>
       <div><span class="text-gray-400">分类：</span>${escHtml(tx.category)}</div>
       <div><span class="text-gray-400">交易对方：</span>${escHtml(tx.counterparty)}</div>
       <div><span class="text-gray-400">账户：</span>${escHtml(tx.accounts?.account_name || '--')}</div>
     </div>
   `;
+  document.getElementById('reversal-amount-input').value = '';
+  document.getElementById('btn-confirm-reversal').disabled = true;
   openModal('modal-reversal');
+}
+
+function checkReversalConfirm() {
+  const input = document.getElementById('reversal-amount-input').value.trim();
+  const expected = String(reversalAmount);
+  document.getElementById('btn-confirm-reversal').disabled = (input !== expected);
 }
 
 async function confirmReversal() {
@@ -1395,7 +1504,8 @@ async function loadAccounts() {
 async function loadAccountsPage() {
   const container = document.getElementById('accounts-list');
   container.innerHTML = allAccounts.map(a => `
-    <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+    <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100 cursor-pointer hover:shadow-md transition-shadow"
+      onclick="viewAccountTransactions('${a.id}', '${escHtml(a.account_name)}')">
       <div class="flex justify-between items-start">
         <h3 class="font-semibold text-gray-700">${escHtml(a.account_name)}</h3>
         <span class="text-xs text-gray-300">${fmtDateTime(a.updated_at)}</span>
@@ -1403,6 +1513,7 @@ async function loadAccountsPage() {
       <p class="text-3xl font-bold mt-2 ${parseFloat(a.current_balance) < 0 ? 'text-red-500' : 'text-gray-800'}">
         ${fmtMoney(a.current_balance)}
       </p>
+      <p class="text-[10px] text-blue-400 mt-2">点击查看该账户流水 →</p>
     </div>
   `).join('');
 }
@@ -1430,22 +1541,35 @@ async function submitAccount(e) {
 }
 
 // ================================================================
-// 审计日志
+// 审计日志（分页+筛选）
 // ================================================================
-async function loadAuditLogs() {
-  const { data: logs } = await sb.from('audit_logs')
-    .select('*')
+async function loadAuditLogs(reset = true) {
+  if (reset) auditOffset = 0;
+
+  const typeFilter  = document.getElementById('audit-filter-type').value;
+  const operator    = document.getElementById('audit-filter-operator').value.trim();
+
+  let query = sb.from('audit_logs')
+    .select('*', { count: 'exact' })
     .order('operated_at', { ascending: false })
-    .limit(100);
+    .range(auditOffset, auditOffset + AUDIT_PAGE_SIZE - 1);
+
+  if (typeFilter) query = query.eq('action_type', typeFilter);
+  if (operator)   query = query.ilike('operator_name', `%${operator}%`);
+
+  const { data: logs, count } = await query;
+  const list = logs || [];
+
+  const actionMap = {
+    create:'新增', update:'修改', reversal:'冲销',
+    correction:'补录', lock:'锁定', unlock:'解锁', pending_lock:'待锁定'
+  };
 
   const tbody = document.getElementById('audit-table-body');
-  tbody.innerHTML = (logs || []).map(l => {
-    const actionMap = {
-      create:'新增', update:'修改', reversal:'冲销',
-      correction:'补录', lock:'锁定', unlock:'解锁', pending_lock:'待锁定'
-    };
-    const before = l.before_value ? JSON.stringify(l.before_value).slice(0, 60) + '…' : '--';
-    const after  = l.after_value  ? JSON.stringify(l.after_value).slice(0, 60)  + '…' : '--';
+  if (reset) tbody.innerHTML = '';
+  tbody.innerHTML += list.map(l => {
+    const before = l.before_value ? JSON.stringify(l.before_value).slice(0, 60) + '...' : '--';
+    const after  = l.after_value  ? JSON.stringify(l.after_value).slice(0, 60)  + '...' : '--';
     return `
       <tr class="border-b border-gray-50 hover:bg-gray-50 text-xs md:text-sm">
         <td class="px-3 py-2 whitespace-nowrap">${fmtDateTime(l.operated_at)}</td>
@@ -1468,6 +1592,17 @@ async function loadAuditLogs() {
       </tr>
     `;
   }).join('');
+
+  auditOffset += list.length;
+  document.getElementById('audit-load-more').classList.toggle('hidden', auditOffset >= count);
+  document.getElementById('audit-count-info').textContent = `已加载 ${auditOffset} / ${count || 0} 条`;
+}
+
+function loadMoreAudit() { loadAuditLogs(false); }
+
+function debounceAuditSearch() {
+  clearTimeout(auditSearchTimer);
+  auditSearchTimer = setTimeout(() => loadAuditLogs(), 400);
 }
 
 // ================================================================
@@ -2139,6 +2274,77 @@ async function checkPeriodLock() {
     `账期锁定审批已发起`,
     `${period} 账期锁定审批已自动发起，请及时投票。`
   );
+}
+
+// ================================================================
+// 账户流水详情
+// ================================================================
+function viewAccountTransactions(accountId, accountName) {
+  // 切换到流水页面，自动筛选该账户
+  switchPage('transactions');
+  // 用 date range 模式，清空日期筛选，通过 ilike 筛账户名（简单方案）
+  document.getElementById('filter-counterparty').value = '';
+  document.getElementById('filter-type').value = '';
+  document.getElementById('filter-record-type').value = '';
+  document.getElementById('filter-date-from').value = '';
+  document.getElementById('filter-date-to').value = '';
+  showToast(`正在加载「${accountName}」的流水`, 'info');
+  loadAccountTxList(accountId, accountName);
+}
+
+let accountFilterId = null;
+let accountFilterName = null;
+
+async function loadAccountTxList(accountId, accountName) {
+  accountFilterId = accountId;
+  accountFilterName = accountName;
+  txOffset = 0;
+
+  const { data: txs, count } = await sb.from('transactions')
+    .select('*, accounts(account_name)', { count: 'exact' })
+    .eq('account_id', accountId)
+    .order('transaction_date', { ascending: false })
+    .range(0, TX_PAGE_SIZE - 1);
+
+  const list = txs || [];
+  document.getElementById('tx-card-list').innerHTML = list.map(t => renderTxCard(t)).join('');
+  document.getElementById('tx-table-body').innerHTML = list.map(t => renderTxRow(t)).join('');
+  txOffset = list.length;
+  document.getElementById('btn-load-more').classList.toggle('hidden', txOffset >= count);
+}
+
+// 覆盖 loadMore 以支持账户筛选
+const _originalLoadMore = loadMore;
+window.loadMore = function() {
+  if (accountFilterId) {
+    loadMoreAccountTx();
+  } else {
+    _originalLoadMore();
+  }
+};
+
+async function loadMoreAccountTx() {
+  const { data: txs, count } = await sb.from('transactions')
+    .select('*, accounts(account_name)', { count: 'exact' })
+    .eq('account_id', accountFilterId)
+    .order('transaction_date', { ascending: false })
+    .range(txOffset, txOffset + TX_PAGE_SIZE - 1);
+
+  const list = txs || [];
+  document.getElementById('tx-card-list').innerHTML += list.map(t => renderTxCard(t)).join('');
+  document.getElementById('tx-table-body').innerHTML += list.map(t => renderTxRow(t)).join('');
+  txOffset += list.length;
+  document.getElementById('btn-load-more').classList.toggle('hidden', txOffset >= count);
+}
+
+// ================================================================
+// 移动端菜单
+// ================================================================
+function openMobileMenu() {
+  document.getElementById('mobile-menu').classList.remove('hidden');
+}
+function closeMobileMenu() {
+  document.getElementById('mobile-menu').classList.add('hidden');
 }
 
 // ================================================================
