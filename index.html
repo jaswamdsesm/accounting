@@ -712,6 +712,7 @@ async function feishuLogin() {
     if (ttObj.requestAccess) {
       ttObj.requestAccess({
         appID: FEISHU_APP_ID,
+        scopeList: ['user.info:base'],
         success: async (res) => {
           loginSource += ', 使用 requestAccess';
           await handleFeishuCode(res.code, resolve, reject);
