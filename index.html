@@ -146,16 +146,16 @@
     .custom-sel-btn:focus { outline: none; box-shadow: 0 0 0 2px rgba(96,165,250,0.5); border-color: #60a5fa; }
     .custom-sel-btn svg { width: 12px; height: 12px; margin-left: 0.5rem; color: #6b7280; flex-shrink: 0; }
     .custom-sel-list {
-      position: absolute; z-index: 60; left: 0; right: 0; top: calc(100% + 4px);
+      position: fixed; z-index: 9998;
       background: #fff; border: 1px solid #e5e7eb; border-radius: 0.5rem;
       box-shadow: 0 4px 16px rgba(0,0,0,.12);
       max-height: 220px; overflow-y: auto;
-      opacity: 0; transform: translateY(-6px);
-      transition: opacity .12s ease, transform .12s ease;
+      opacity: 0;
+      transition: opacity .12s ease;
       pointer-events: none;
     }
     .custom-sel.open .custom-sel-list {
-      opacity: 1; transform: translateY(0); pointer-events: auto;
+      opacity: 1; pointer-events: auto;
     }
     .custom-sel-opt { padding: 0.5rem 0.625rem; cursor: pointer; font-size: 0.875rem; }
     .custom-sel-opt:hover { background: #f3f4f6; }
@@ -358,20 +358,32 @@ class CustomSelect {
     // 先关闭其它已打开的下拉
     document.querySelectorAll('.custom-sel.open').forEach(el => el.classList.remove('open'));
     this.wrap.classList.add('open');
-    // 列表超出视口时自动翻转移位
+
     requestAnimationFrame(() => {
-      const rect = this._list.getBoundingClientRect();
-      if (rect.bottom > window.innerHeight - 8) {
-        this._list.style.top = 'auto';
-        this._list.style.bottom = 'calc(100% + 4px)';
+      const btnRect = this._btn.getBoundingClientRect();
+      const listH   = this._list.offsetHeight || 240;
+      // fixed 定位：对齐按钮左下角
+      this._list.style.left   = btnRect.left + 'px';
+      this._list.style.width  = Math.max(btnRect.width, 120) + 'px';
+
+      const fitsBelow = btnRect.bottom + listH < window.innerHeight - 8;
+      if (fitsBelow) {
+        this._list.style.top    = btnRect.bottom + 4 + 'px';
+        this._list.style.bottom = '';
+      } else {
+        // 空间不足时翻转到按钮上方
+        this._list.style.bottom = (window.innerHeight - btnRect.top + 4) + 'px';
+        this._list.style.top    = '';
       }
     });
   }
 
   _close() {
     this.wrap.classList.remove('open');
-    this._list.style.top = '';
+    this._list.style.top   = '';
     this._list.style.bottom = '';
+    this._list.style.left  = '';
+    this._list.style.width = '';
   }
 
   _rebuild() { this._updateBtn(); this._buildOpts(); }
@@ -967,11 +979,14 @@ document.addEventListener('DOMContentLoaded', initCustomDatePickers);
      新增/编辑流水 模态框
 ============================================================ -->
 <div id="modal-tx" class="fixed inset-0 hidden modal-backdrop bg-black/30" style="z-index:60">
-  <div class="absolute inset-x-0 bottom-0 md:relative md:inset-auto md:mx-auto md:my-8 md:max-w-2xl
-              bg-white rounded-t-2xl md:rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+  <!-- 移动端：fixed 全屏内部滚动；电脑端：fixed 居中 -->
+  <div id="modal-tx-panel" class="fixed inset-x-0 bottom-0
+              md:fixed md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:mx-auto md:my-8 md:max-w-2xl
+              bg-white rounded-t-2xl md:rounded-2xl shadow-2xl
+              max-h-[95vh] md:max-h-[90vh] overflow-y-auto">
 
     <!-- 模态框头 -->
-    <div class="sticky top-0 bg-white px-5 py-4 border-b border-gray-100 flex items-center justify-between rounded-t-2xl">
+    <div class="sticky top-0 z-10 bg-white px-5 py-4 border-b border-gray-100 flex items-center justify-between rounded-t-2xl">
       <h3 id="modal-tx-title" class="text-base font-bold">新增记录</h3>
       <button onclick="closeModal('modal-tx')" class="text-gray-400 hover:text-gray-600 text-2xl w-8 h-8 flex items-center justify-center">×</button>
     </div>
@@ -3448,11 +3463,25 @@ function canBookkeep() {
 // ================================================================
 function openModal(id) {
   document.getElementById(id).classList.remove('hidden');
+  // 锁住背景滚动
+  const scrollY = window.scrollY || window.pageYOffset;
   document.body.style.overflow = 'hidden';
+  document.body.style.position = 'fixed';
+  document.body.style.top      = '-' + scrollY + 'px';
+  document.body.style.left     = '0';
+  document.body.style.right   = '0';
+  document.body.dataset.scrollY = scrollY;
 }
 function closeModal(id) {
   document.getElementById(id).classList.add('hidden');
+  // 恢复背景滚动
+  const scrollY = parseInt(document.body.dataset.scrollY) || 0;
   document.body.style.overflow = '';
+  document.body.style.position = '';
+  document.body.style.top      = '';
+  document.body.style.left     = '';
+  document.body.style.right    = '';
+  window.scrollTo(0, scrollY);
 }
 
 // ================================================================
