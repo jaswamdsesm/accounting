@@ -2671,42 +2671,50 @@ let cropState = null; // { img, canvas, ctx, crop, dragging, maxW, maxH }
 function openCropper(file) {
   const img = new Image();
   img.onload = () => {
-    const container = document.getElementById('crop-canvas').parentElement;
-    const maxW = container.clientWidth - 8;
-    const maxH = window.innerHeight * 0.55;
-
-    let scale = Math.min(maxW / img.width, maxH / img.height, 1);
-    const displayW = Math.round(img.width * scale);
-    const displayH = Math.round(img.height * scale);
-
-    const canvas = document.getElementById('crop-canvas');
-    canvas.width = displayW;
-    canvas.height = displayH;
-
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(img, 0, 0, displayW, displayH);
-
-    // 默认裁切框：80% 居中
-    const margin = 0.1;
-    const crop = {
-      x: Math.round(displayW * margin),
-      y: Math.round(displayH * margin),
-      w: Math.round(displayW * (1 - 2 * margin)),
-      h: Math.round(displayH * (1 - 2 * margin))
-    };
-
-    cropState = {
-      img, canvas, ctx, crop,
-      displayW, displayH, scale,
-      fileName: file.name,
-      dragging: null, // null | 'move' | 'tl' | 'tr' | 'bl' | 'br' | 't' | 'b' | 'l' | 'r'
-      dragStart: null,
-      dragCropStart: null
-    };
-
-    drawCropOverlay();
-    bindCropEvents();
+    // 先打开模态框，确保容器有尺寸
     openModal('modal-cropper');
+
+    // 等待 DOM 更新后再计算尺寸
+    requestAnimationFrame(() => {
+      const container = document.getElementById('crop-canvas').parentElement;
+      const maxW = container.clientWidth - 8;
+      const maxH = window.innerHeight * 0.55;
+
+      let scale = Math.min(maxW / img.width, maxH / img.height, 1);
+      const displayW = Math.round(img.width * scale);
+      const displayH = Math.round(img.height * scale);
+
+      const canvas = document.getElementById('crop-canvas');
+      canvas.width = displayW;
+      canvas.height = displayH;
+
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, displayW, displayH);
+
+      // 默认裁切框：80% 居中
+      const margin = 0.1;
+      const crop = {
+        x: Math.round(displayW * margin),
+        y: Math.round(displayH * margin),
+        w: Math.round(displayW * (1 - 2 * margin)),
+        h: Math.round(displayH * (1 - 2 * margin))
+      };
+
+      cropState = {
+        img, canvas, ctx, crop,
+        displayW, displayH, scale,
+        fileName: file.name,
+        dragging: null,
+        dragStart: null,
+        dragCropStart: null
+      };
+
+      drawCropOverlay();
+      bindCropEvents();
+    });
+  };
+  img.onerror = () => {
+    showToast('图片加载失败，请重试', 'error');
   };
   img.src = URL.createObjectURL(file);
 }
