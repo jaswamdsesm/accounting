@@ -1,0 +1,1564 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>股东记账系统</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Supabase JS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- 飞书 JSSDK -->
+  <script src="https://lf1-cdn-tos.bytegoofy.com/goofy/ee/lark/h5jssdk/lark-web-sdk/3.1.0/h5-js-sdk-1.5.30.umd.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            reversal:   { bg: '#FFEBEE', text: '#C62828' },
+            correction: { bg: '#E3F2FD', text: '#1565C0' },
+            locked:     { bg: '#F5F5F5', text: '#757575' },
+            warning:    { bg: '#FFF3E0', text: '#E65100' },
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* ===== 全局 ===== */
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB', sans-serif; }
+
+    /* ===== 移动端底部安全区 ===== */
+    .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 16px); }
+
+    /* ===== 记录类型颜色 ===== */
+    .row-reversal   { background-color: #FFEBEE !important; color: #C62828; }
+    .row-correction { background-color: #E3F2FD !important; color: #1565C0; }
+    .row-locked     { background-color: #F5F5F5 !important; color: #757575; }
+
+    /* ===== 电脑端斑马纹 ===== */
+    @media (min-width: 768px) {
+      .zebra-row:nth-child(even):not(.row-reversal):not(.row-correction):not(.row-locked) {
+        background-color: #FAFAFA;
+      }
+    }
+
+    /* ===== 加载动画 ===== */
+    .spin { animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ===== 悬浮提示条 ===== */
+    #toast { transition: all .3s ease; }
+
+    /* ===== 移动端卡片阴影 ===== */
+    @media (max-width: 767px) {
+      .tx-card { border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.12); }
+    }
+
+    /* ===== 固定底部导航（移动端） ===== */
+    #bottom-nav { display: none; }
+    @media (max-width: 767px) {
+      #bottom-nav { display: flex; }
+      #sidebar     { display: none !important; }
+      #main-area   { margin-left: 0 !important; padding-bottom: 72px; }
+    }
+
+    /* ===== 固定侧边栏（电脑端） ===== */
+    @media (min-width: 768px) {
+      #sidebar   { display: flex; }
+      #main-area { margin-left: 200px; }
+    }
+
+    /* ===== 按钮最小触控区域 ===== */
+    .btn-touch { min-height: 44px; min-width: 44px; }
+    .btn-bottom { height: 48px; }
+
+    /* ===== 表格样式（电脑端） ===== */
+    @media (min-width: 768px) {
+      .data-table tr { height: 40px; }
+      .data-table th { position: sticky; top: 0; z-index: 10; }
+    }
+
+    /* ===== 模态框 ===== */
+    .modal-backdrop { backdrop-filter: blur(2px); }
+  </style>
+</head>
+
+<body class="bg-gray-50 text-gray-900 min-h-screen">
+
+<!-- ============================================================
+     加载遮罩
+============================================================ -->
+<div id="loading-mask" class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center gap-3">
+  <div class="spin w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full"></div>
+  <p class="text-gray-500 text-sm">正在初始化...</p>
+</div>
+
+<!-- ============================================================
+     顶部提示条（余额不足 / 操作成功 / 错误）
+============================================================ -->
+<div id="toast"
+  class="fixed top-0 left-0 right-0 z-50 hidden"
+  role="alert">
+  <div id="toast-inner" class="w-full md:max-w-lg md:mx-auto md:mt-4 md:rounded-lg px-4 py-3 text-sm font-medium shadow-lg flex items-center gap-2">
+    <span id="toast-icon" class="text-lg"></span>
+    <span id="toast-msg"></span>
+  </div>
+</div>
+
+<!-- ============================================================
+     侧边栏导航（电脑端）
+============================================================ -->
+<aside id="sidebar"
+  class="fixed top-0 left-0 h-full w-[200px] bg-white border-r border-gray-200 flex-col z-30 hidden">
+  <div class="px-5 py-5 border-b border-gray-100">
+    <h1 class="text-base font-bold text-gray-800">📒 股东记账</h1>
+    <p id="sidebar-user" class="text-xs text-gray-400 mt-1 truncate">加载中...</p>
+  </div>
+  <nav class="flex-1 overflow-y-auto py-3">
+    <button onclick="switchPage('dashboard')" data-page="dashboard"
+      class="nav-btn w-full text-left px-5 py-3 text-sm flex items-center gap-3 hover:bg-blue-50 transition-colors">
+      <span class="text-lg">📊</span><span>仪表盘</span>
+    </button>
+    <button onclick="switchPage('transactions')" data-page="transactions"
+      class="nav-btn w-full text-left px-5 py-3 text-sm flex items-center gap-3 hover:bg-blue-50 transition-colors">
+      <span class="text-lg">📋</span><span>收支流水</span>
+    </button>
+    <button onclick="switchPage('accounts')" data-page="accounts"
+      class="nav-btn w-full text-left px-5 py-3 text-sm flex items-center gap-3 hover:bg-blue-50 transition-colors">
+      <span class="text-lg">💰</span><span>账户余额</span>
+    </button>
+    <button onclick="switchPage('audit')" data-page="audit"
+      class="nav-btn w-full text-left px-5 py-3 text-sm flex items-center gap-3 hover:bg-blue-50 transition-colors">
+      <span class="text-lg">🔍</span><span>审计日志</span>
+    </button>
+    <button onclick="switchPage('approvals')" data-page="approvals"
+      class="nav-btn w-full text-left px-5 py-3 text-sm flex items-center gap-3 hover:bg-blue-50 transition-colors">
+      <span class="text-lg">✅</span><span>审批中心</span>
+    </button>
+  </nav>
+  <!-- 角色配置入口 -->
+  <div class="border-t border-gray-100 px-5 py-3">
+    <button onclick="switchPage('settings')" data-page="settings"
+      class="nav-btn w-full text-left text-xs text-gray-400 flex items-center gap-2 hover:text-gray-600">
+      <span>⚙️</span><span>角色配置</span>
+    </button>
+  </div>
+</aside>
+
+<!-- ============================================================
+     主内容区域
+============================================================ -->
+<div id="main-area" class="min-h-screen">
+
+  <!-- ========== 仪表盘页面 ========== -->
+  <div id="page-dashboard" class="page p-4 md:p-6">
+    <h2 class="text-lg font-bold mb-4 text-gray-800">仪表盘</h2>
+
+    <!-- 账期选择器 -->
+    <div class="flex items-center gap-2 mb-4">
+      <label class="text-sm text-gray-500">账期</label>
+      <input type="month" id="dash-period"
+        class="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+        onchange="loadDashboard()" />
+    </div>
+
+    <!-- 数据卡片：移动端单列，电脑端三列 -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+      <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <p class="text-xs text-gray-400 mb-1">本期收入</p>
+        <p id="dash-income" class="text-2xl md:text-3xl font-bold text-green-600">--</p>
+      </div>
+      <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <p class="text-xs text-gray-400 mb-1">本期支出</p>
+        <p id="dash-expense" class="text-2xl md:text-3xl font-bold text-red-500">--</p>
+      </div>
+      <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+        <p class="text-xs text-gray-400 mb-1">净额</p>
+        <p id="dash-net" class="text-2xl md:text-3xl font-bold text-blue-600">--</p>
+      </div>
+    </div>
+
+    <!-- 账户余额卡片列表 -->
+    <h3 class="text-sm font-semibold text-gray-600 mb-2">账户余额</h3>
+    <div id="dash-accounts" class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+      <!-- 动态渲染 -->
+    </div>
+
+    <!-- 分类占比 -->
+    <h3 class="text-sm font-semibold text-gray-600 mb-2">支出分类</h3>
+    <div id="dash-categories" class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+      <div class="space-y-2" id="dash-cat-list"></div>
+    </div>
+  </div>
+
+  <!-- ========== 收支流水页面 ========== -->
+  <div id="page-transactions" class="page hidden">
+    <!-- 页头 + 筛选 -->
+    <div class="sticky top-0 bg-gray-50 z-20 px-4 pt-4 pb-2 md:px-6">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-lg font-bold text-gray-800">收支流水</h2>
+        <!-- 电脑端：新增按钮在顶部；移动端：固定底部 -->
+        <button onclick="openAddModal()" id="btn-add-desktop"
+          class="hidden md:flex btn-touch items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg transition-colors">
+          <span class="text-base">＋</span> 新增记录
+        </button>
+      </div>
+      <!-- 筛选栏 -->
+      <div class="flex flex-wrap gap-2 text-xs">
+        <select id="filter-type" onchange="loadTransactions()"
+          class="border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
+          <option value="">全部类型</option>
+          <option value="income">收入</option>
+          <option value="expense">支出</option>
+        </select>
+        <select id="filter-record-type" onchange="loadTransactions()"
+          class="border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
+          <option value="">全部记录</option>
+          <option value="normal">正常</option>
+          <option value="reversal">冲销</option>
+          <option value="correction">补录</option>
+        </select>
+        <input type="month" id="filter-period" onchange="loadTransactions()"
+          class="border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" />
+        <button onclick="clearFilters()"
+          class="text-gray-400 hover:text-gray-600 px-2 py-1.5">重置</button>
+      </div>
+    </div>
+
+    <!-- 移动端：卡片列表 -->
+    <div id="tx-card-list" class="md:hidden px-4 py-2 space-y-3">
+      <!-- 动态渲染 -->
+    </div>
+
+    <!-- 电脑端：表格 -->
+    <div class="hidden md:block px-6 pb-6 overflow-x-auto">
+      <table class="data-table w-full text-sm border-collapse">
+        <thead>
+          <tr class="bg-gray-100 text-gray-500 text-xs uppercase tracking-wider">
+            <th class="text-left px-3 py-2 rounded-tl-lg cursor-pointer hover:bg-gray-200" onclick="sortBy('serial_no')">
+              流水号 <span id="sort-serial_no"></span>
+            </th>
+            <th class="text-left px-3 py-2 cursor-pointer hover:bg-gray-200" onclick="sortBy('transaction_date')">
+              日期 <span id="sort-transaction_date"></span>
+            </th>
+            <th class="text-left px-3 py-2">收支</th>
+            <th class="text-right px-3 py-2 cursor-pointer hover:bg-gray-200" onclick="sortBy('amount')">
+              金额 <span id="sort-amount"></span>
+            </th>
+            <th class="text-left px-3 py-2">分类</th>
+            <th class="text-left px-3 py-2">关联账户</th>
+            <th class="text-left px-3 py-2">交易对方</th>
+            <th class="text-center px-3 py-2">状态</th>
+            <th class="text-center px-3 py-2">类型</th>
+            <th class="text-right px-3 py-2 rounded-tr-lg">操作</th>
+          </tr>
+        </thead>
+        <tbody id="tx-table-body">
+          <!-- 动态渲染 -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 加载更多 -->
+    <div class="flex justify-center py-4">
+      <button id="btn-load-more" onclick="loadMore()"
+        class="hidden text-sm text-blue-500 hover:text-blue-700 px-4 py-2">
+        加载更多
+      </button>
+    </div>
+  </div>
+
+  <!-- ========== 账户余额页面 ========== -->
+  <div id="page-accounts" class="page hidden p-4 md:p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-lg font-bold text-gray-800">账户余额</h2>
+      <button onclick="openAccountModal()"
+        class="btn-touch flex items-center gap-1 bg-green-600 hover:bg-green-700 text-white text-sm px-4 py-2 rounded-lg">
+        ＋ 新增账户
+      </button>
+    </div>
+    <div id="accounts-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <!-- 动态渲染 -->
+    </div>
+  </div>
+
+  <!-- ========== 审计日志页面 ========== -->
+  <div id="page-audit" class="page hidden p-4 md:p-6">
+    <h2 class="text-lg font-bold text-gray-800 mb-4">审计日志</h2>
+    <div class="overflow-x-auto">
+      <table class="data-table w-full text-xs md:text-sm border-collapse">
+        <thead>
+          <tr class="bg-gray-100 text-gray-500 text-xs uppercase">
+            <th class="text-left px-3 py-2">操作时间</th>
+            <th class="text-left px-3 py-2">操作人</th>
+            <th class="text-left px-3 py-2">IP</th>
+            <th class="text-left px-3 py-2">类型</th>
+            <th class="text-left px-3 py-2">对象表</th>
+            <th class="text-left px-3 py-2">流水号</th>
+            <th class="text-left px-3 py-2">变更详情</th>
+          </tr>
+        </thead>
+        <tbody id="audit-table-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ========== 审批中心页面 ========== -->
+  <div id="page-approvals" class="page hidden p-4 md:p-6">
+    <h2 class="text-lg font-bold text-gray-800 mb-4">审批中心</h2>
+    <div id="approvals-list" class="space-y-3"></div>
+  </div>
+
+  <!-- ========== 角色配置页面 ========== -->
+  <div id="page-settings" class="page hidden p-4 md:p-6">
+    <h2 class="text-lg font-bold text-gray-800 mb-2">角色配置</h2>
+    <p class="text-sm text-gray-400 mb-4">未来加入专职财务后，可在此切换各用户角色。</p>
+    <div id="users-config-list" class="space-y-3"></div>
+  </div>
+
+</div><!-- /main-area -->
+
+<!-- ============================================================
+     移动端底部固定导航
+============================================================ -->
+<nav id="bottom-nav"
+  class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-30 safe-bottom flex items-center justify-around">
+  <button onclick="switchPage('transactions')" data-page="transactions"
+    class="btn-nav flex flex-col items-center py-2 px-4 text-gray-400 min-h-[48px] min-w-[48px]">
+    <span class="text-xl">📋</span>
+    <span class="text-[10px] mt-0.5">流水</span>
+  </button>
+  <button onclick="switchPage('dashboard')" data-page="dashboard"
+    class="btn-nav flex flex-col items-center py-2 px-4 text-gray-400 min-h-[48px] min-w-[48px]">
+    <span class="text-xl">📊</span>
+    <span class="text-[10px] mt-0.5">仪表盘</span>
+  </button>
+  <button onclick="switchPage('accounts')" data-page="accounts"
+    class="btn-nav flex flex-col items-center py-2 px-4 text-gray-400 min-h-[48px] min-w-[48px]">
+    <span class="text-xl">💰</span>
+    <span class="text-[10px] mt-0.5">余额</span>
+  </button>
+</nav>
+
+<!-- 移动端：新增按钮（固定底部，在底部导航上方） -->
+<button onclick="openAddModal()" id="btn-add-mobile"
+  class="md:hidden fixed bottom-20 right-4 z-30 btn-bottom w-14 h-14 rounded-full bg-blue-600 hover:bg-blue-700 text-white text-2xl shadow-lg flex items-center justify-center safe-bottom transition-colors">
+  ＋
+</button>
+
+<!-- ============================================================
+     新增/编辑流水 模态框
+============================================================ -->
+<div id="modal-tx" class="fixed inset-0 z-40 hidden modal-backdrop bg-black/30">
+  <div class="absolute inset-x-0 bottom-0 md:relative md:inset-auto md:mx-auto md:my-8 md:max-w-2xl
+              bg-white rounded-t-2xl md:rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+
+    <!-- 模态框头 -->
+    <div class="sticky top-0 bg-white px-5 py-4 border-b border-gray-100 flex items-center justify-between rounded-t-2xl">
+      <h3 id="modal-tx-title" class="text-base font-bold">新增记录</h3>
+      <button onclick="closeModal('modal-tx')" class="text-gray-400 hover:text-gray-600 text-2xl w-8 h-8 flex items-center justify-center">×</button>
+    </div>
+
+    <form id="form-tx" onsubmit="submitTransaction(event)" class="p-5">
+      <!-- 隐藏字段 -->
+      <input type="hidden" id="tx-edit-id" />
+      <input type="hidden" id="tx-record-type" value="normal" />
+      <input type="hidden" id="tx-related-serial" />
+
+      <!-- 移动端：单列堆叠；电脑端：两列 -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+        <!-- 发生日期 -->
+        <div class="md:col-span-1">
+          <label class="block text-xs font-medium text-gray-500 mb-1">发生日期 <span class="text-red-500">*</span></label>
+          <input type="date" id="tx-date" required
+            class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+        </div>
+
+        <!-- 收支类型 -->
+        <div class="md:col-span-1">
+          <label class="block text-xs font-medium text-gray-500 mb-1">收支类型 <span class="text-red-500">*</span></label>
+          <div class="flex gap-2">
+            <button type="button" id="btn-income" onclick="setTxType('income')"
+              class="flex-1 btn-touch py-2.5 rounded-lg text-sm font-medium border-2 border-green-400 text-green-600 bg-green-50 transition-all">
+              ↑ 收入
+            </button>
+            <button type="button" id="btn-expense" onclick="setTxType('expense')"
+              class="flex-1 btn-touch py-2.5 rounded-lg text-sm font-medium border-2 border-gray-200 text-gray-400 transition-all">
+              ↓ 支出
+            </button>
+          </div>
+          <input type="hidden" id="tx-type" value="income" required />
+        </div>
+
+        <!-- 金额 -->
+        <div class="md:col-span-1">
+          <label class="block text-xs font-medium text-gray-500 mb-1">金额 <span class="text-red-500">*</span></label>
+          <input type="number" id="tx-amount" step="0.01" min="0.01" placeholder="0.00" required
+            class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+        </div>
+
+        <!-- 分类 -->
+        <div class="md:col-span-1">
+          <label class="block text-xs font-medium text-gray-500 mb-1">分类 <span class="text-red-500">*</span></label>
+          <select id="tx-category" required
+            class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+            <option value="">请选择...</option>
+            <optgroup label="收入">
+              <option value="营业收入">营业收入</option>
+              <option value="营业外收入">营业外收入</option>
+              <option value="其他收入">其他收入</option>
+            </optgroup>
+            <optgroup label="支出">
+              <option value="采购成本">采购成本</option>
+              <option value="人力成本">人力成本</option>
+              <option value="办公费">办公费</option>
+              <option value="业务招待费">业务招待费</option>
+              <option value="税费">税费</option>
+              <option value="其他支出">其他支出</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <!-- 关联账户 -->
+        <div class="md:col-span-1">
+          <label class="block text-xs font-medium text-gray-500 mb-1">关联账户 <span class="text-red-500">*</span></label>
+          <select id="tx-account" required
+            class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
+            <option value="">请选择...</option>
+          </select>
+        </div>
+
+        <!-- 交易对方 -->
+        <div class="md:col-span-1">
+          <label class="block text-xs font-medium text-gray-500 mb-1">交易对方 <span class="text-red-500">*</span></label>
+          <input type="text" id="tx-counterparty" placeholder="个人或公司名称" required
+            class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+        </div>
+
+        <!-- 交易说明 -->
+        <div class="md:col-span-2">
+          <label class="block text-xs font-medium text-gray-500 mb-1">交易说明</label>
+          <textarea id="tx-description" rows="2" placeholder="可选备注..."
+            class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"></textarea>
+        </div>
+
+        <!-- 凭证附件 -->
+        <div class="md:col-span-2">
+          <label class="block text-xs font-medium text-gray-500 mb-1">凭证附件</label>
+          <div id="attachment-area" class="border-2 border-dashed border-gray-200 rounded-lg p-4 text-center text-sm text-gray-400 cursor-pointer hover:border-blue-300 hover:text-blue-400 transition-colors"
+            onclick="document.getElementById('tx-file').click()">
+            <span>点击上传图片或 PDF（可多选）</span>
+            <input type="file" id="tx-file" multiple accept="image/*,.pdf" class="hidden" onchange="handleFileSelect(event)" />
+          </div>
+          <div id="file-preview" class="flex flex-wrap gap-2 mt-2"></div>
+        </div>
+
+      </div>
+
+      <!-- 提交按钮 -->
+      <div class="flex gap-3 mt-6">
+        <button type="button" onclick="closeModal('modal-tx')"
+          class="flex-1 btn-bottom rounded-xl border border-gray-200 text-sm text-gray-500 hover:bg-gray-50">
+          取消
+        </button>
+        <button type="submit" id="btn-submit-tx"
+          class="flex-1 btn-bottom rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors">
+          提交
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============================================================
+     新增账户 模态框
+============================================================ -->
+<div id="modal-account" class="fixed inset-0 z-40 hidden modal-backdrop bg-black/30">
+  <div class="absolute inset-x-4 top-1/2 -translate-y-1/2 md:relative md:inset-auto md:mx-auto md:my-8 md:max-w-sm
+              bg-white rounded-2xl shadow-2xl p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-bold">新增账户</h3>
+      <button onclick="closeModal('modal-account')" class="text-gray-400 text-2xl w-8 h-8 flex items-center justify-center">×</button>
+    </div>
+    <form onsubmit="submitAccount(event)" class="space-y-4">
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">账户名称 <span class="text-red-500">*</span></label>
+        <input type="text" id="account-name" placeholder="如：微信零钱" required
+          class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">初始余额</label>
+        <input type="number" id="account-balance" step="0.01" value="0.00"
+          class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="button" onclick="closeModal('modal-account')"
+          class="flex-1 btn-bottom rounded-xl border border-gray-200 text-sm text-gray-500">取消</button>
+        <button type="submit"
+          class="flex-1 btn-bottom rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-medium">保存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============================================================
+     冲销确认 模态框
+============================================================ -->
+<div id="modal-reversal" class="fixed inset-0 z-40 hidden modal-backdrop bg-black/30">
+  <div class="absolute inset-x-4 top-1/2 -translate-y-1/2 md:relative md:inset-auto md:mx-auto md:my-8 md:max-w-sm
+              bg-white rounded-2xl shadow-2xl p-5">
+    <h3 class="font-bold text-red-600 mb-2">⚠️ 确认红字冲销</h3>
+    <p class="text-sm text-gray-500 mb-3">将对以下记录执行冲销操作，此操作不可撤销：</p>
+    <div id="reversal-preview" class="bg-red-50 rounded-lg p-3 text-sm mb-4"></div>
+    <input type="hidden" id="reversal-tx-id" />
+    <div class="flex gap-3">
+      <button onclick="closeModal('modal-reversal')"
+        class="flex-1 btn-bottom rounded-xl border border-gray-200 text-sm text-gray-500">取消</button>
+      <button onclick="confirmReversal()"
+        class="flex-1 btn-bottom rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-medium">确认冲销</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     审批投票 模态框
+============================================================ -->
+<div id="modal-vote" class="fixed inset-0 z-40 hidden modal-backdrop bg-black/30">
+  <div class="absolute inset-x-4 top-1/2 -translate-y-1/2 md:relative md:inset-auto md:mx-auto md:my-8 md:max-w-md
+              bg-white rounded-2xl shadow-2xl p-5">
+    <h3 class="font-bold mb-2">审批投票</h3>
+    <div id="vote-info" class="text-sm text-gray-600 mb-4"></div>
+    <input type="hidden" id="vote-approval-id" />
+    <div class="flex gap-3">
+      <button onclick="closeModal('modal-vote')"
+        class="flex-1 btn-bottom rounded-xl border border-gray-200 text-sm text-gray-500">稍后</button>
+      <button onclick="castVote('reject')"
+        class="flex-1 btn-bottom rounded-xl border-2 border-red-400 text-red-600 text-sm font-medium hover:bg-red-50">
+        ✗ 拒绝
+      </button>
+      <button onclick="castVote('approve')"
+        class="flex-1 btn-bottom rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium">
+        ✓ 同意
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     申请修改已锁定记录 模态框
+============================================================ -->
+<div id="modal-modify-locked" class="fixed inset-0 z-40 hidden modal-backdrop bg-black/30">
+  <div class="absolute inset-x-0 bottom-0 md:relative md:inset-auto md:mx-auto md:my-8 md:max-w-lg
+              bg-white rounded-t-2xl md:rounded-2xl shadow-2xl p-5 max-h-[80vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-bold text-orange-600">申请修改已锁定记录</h3>
+      <button onclick="closeModal('modal-modify-locked')" class="text-gray-400 text-2xl w-8 h-8 flex items-center justify-center">×</button>
+    </div>
+    <p class="text-xs text-gray-400 mb-3">需至少一位股东同意后，系统将自动执行冲销+补录。</p>
+    <form onsubmit="submitModifyRequest(event)" class="space-y-4">
+      <input type="hidden" id="modify-tx-id" />
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">修改原因 <span class="text-red-500">*</span></label>
+        <textarea id="modify-reason" rows="3" required placeholder="请详细说明修改原因..."
+          class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none"></textarea>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-500 mb-1">佐证附件 <span class="text-red-500">*</span></label>
+        <div class="border-2 border-dashed border-gray-200 rounded-lg p-4 text-center text-sm text-gray-400 cursor-pointer hover:border-orange-300"
+          onclick="document.getElementById('modify-file').click()">
+          上传凭证
+          <input type="file" id="modify-file" multiple accept="image/*,.pdf" class="hidden" />
+        </div>
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="button" onclick="closeModal('modal-modify-locked')"
+          class="flex-1 btn-bottom rounded-xl border border-gray-200 text-sm text-gray-500">取消</button>
+        <button type="submit"
+          class="flex-1 btn-bottom rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium">提交申请</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<!-- ============================================================
+     JavaScript 主逻辑
+============================================================ -->
+<script>
+// ================================================================
+// 配置区（部署时替换以下三个值）
+// ================================================================
+const SUPABASE_URL  = 'https://ftcudbhpoxymhutyjotp.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ0Y3VkYmhwb3h5bWh1dHlqb3RwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc1MzYzNTYsImV4cCI6MjA5MzExMjM1Nn0.H6HYAERcrr73K4vRYlmsflOCHjgnThq7GtdGkxSpGhI';
+const FEISHU_APP_ID = 'cli_a9798d7b37781bdf';
+
+// ================================================================
+// 全局状态
+// ================================================================
+const { createClient } = supabase;
+let sb;             // Supabase client
+let currentUser;    // { id, feishu_uid, name, role }
+let allAccounts = []; // 账户列表缓存
+let txPage = 0;
+const TX_PAGE_SIZE = 30;
+let txSortCol = 'transaction_date';
+let txSortAsc = false;
+let currentPage = 'dashboard';
+
+// ================================================================
+// 初始化入口
+// ================================================================
+async function init() {
+  sb = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+  try {
+    // 尝试飞书免登
+    await feishuLogin();
+  } catch(e) {
+    console.warn('飞书登录失败，尝试调试模式:', e.message);
+    // 开发调试：直接用测试账号
+    await devLogin();
+  }
+
+  await loadAccounts();
+  initDashboardPeriod();
+  await loadDashboard();
+  switchPage('dashboard');
+  hideLoading();
+}
+
+// ================================================================
+// 飞书免登
+// ================================================================
+async function feishuLogin() {
+  return new Promise((resolve, reject) => {
+    // 判断是否在飞书客户端内
+    const ua = navigator.userAgent;
+    if (!ua.includes('Lark') && !ua.includes('Feishu') && !ua.includes('BytedanceWebview')) {
+      reject(new Error('非飞书环境'));
+      return;
+    }
+
+    // 获取飞书 code
+    tt.requestAuthCode({
+      appId: FEISHU_APP_ID,
+      success: async (res) => {
+        const code = res.code;
+        // 调用后端换取用户信息（需要后端接口，此处调用 Supabase Edge Function）
+        const { data, error } = await sb.functions.invoke('feishu-auth', { body: { code } });
+        if (error) { reject(error); return; }
+
+        currentUser = data.user;
+        document.getElementById('sidebar-user').textContent = currentUser.name + ' · ' + roleLabel(currentUser.role);
+        resolve();
+      },
+      fail: reject
+    });
+  });
+}
+
+// ================================================================
+// 开发调试登录（非飞书环境）
+// ================================================================
+async function devLogin() {
+  // 查询第一个用户，若不存在则创建
+  let { data: users } = await sb.from('app_users').select('*').limit(1);
+  if (!users || users.length === 0) {
+    const { data: newUser } = await sb.from('app_users').insert({
+      feishu_uid: 'dev-user-001',
+      name: '开发者',
+      role: 'shareholder_bookkeeper'
+    }).select().single();
+    currentUser = newUser;
+  } else {
+    currentUser = users[0];
+  }
+  document.getElementById('sidebar-user').textContent = currentUser.name + ' · ' + roleLabel(currentUser.role);
+}
+
+function roleLabel(role) {
+  const map = {
+    'shareholder_bookkeeper': '股东记账员',
+    'bookkeeper': '财务',
+    'shareholder_viewer': '股东查看'
+  };
+  return map[role] || role;
+}
+
+// ================================================================
+// 页面切换
+// ================================================================
+function switchPage(page) {
+  currentPage = page;
+
+  // 隐藏所有页面
+  document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+  document.getElementById('page-' + page)?.classList.remove('hidden');
+
+  // 更新侧边栏高亮
+  document.querySelectorAll('.nav-btn, .btn-nav').forEach(btn => {
+    const isActive = btn.dataset.page === page;
+    btn.classList.toggle('text-blue-600', isActive);
+    btn.classList.toggle('bg-blue-50',    isActive);
+    btn.classList.toggle('font-semibold', isActive);
+  });
+
+  // 按需加载
+  if (page === 'dashboard')    loadDashboard();
+  if (page === 'transactions') { txPage = 0; loadTransactions(); }
+  if (page === 'accounts')     loadAccountsPage();
+  if (page === 'audit')        loadAuditLogs();
+  if (page === 'approvals')    loadApprovals();
+  if (page === 'settings')     loadSettings();
+}
+
+// ================================================================
+// 仪表盘
+// ================================================================
+function initDashboardPeriod() {
+  const now = new Date();
+  const ym = now.toISOString().slice(0, 7);
+  document.getElementById('dash-period').value = ym;
+}
+
+async function loadDashboard() {
+  const period = document.getElementById('dash-period').value;
+
+  const { data: txs } = await sb.from('transactions')
+    .select('tx_type, amount, category, record_type')
+    .eq('billing_period', period);
+
+  let income = 0, expense = 0;
+  const catMap = {};
+
+  (txs || []).forEach(t => {
+    const amt = parseFloat(t.amount) || 0;
+    if (t.tx_type === 'income') income += amt;
+    else expense += amt;
+    if (t.record_type !== 'reversal') {
+      catMap[t.category] = (catMap[t.category] || 0) + Math.abs(amt);
+    }
+  });
+
+  const net = income - expense;
+  document.getElementById('dash-income').textContent  = fmtMoney(income);
+  document.getElementById('dash-expense').textContent = fmtMoney(expense);
+  const netEl = document.getElementById('dash-net');
+  netEl.textContent = fmtMoney(net);
+  netEl.className = `text-2xl md:text-3xl font-bold ${net >= 0 ? 'text-blue-600' : 'text-red-500'}`;
+
+  // 账户余额卡片
+  const accContainer = document.getElementById('dash-accounts');
+  accContainer.innerHTML = allAccounts.map(a => `
+    <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
+      <p class="text-xs text-gray-400 mb-1">${escHtml(a.account_name)}</p>
+      <p class="text-xl md:text-2xl font-bold ${parseFloat(a.current_balance) < 0 ? 'text-red-500' : 'text-gray-800'}">
+        ${fmtMoney(a.current_balance)}
+      </p>
+      <p class="text-[10px] text-gray-300 mt-1">更新 ${fmtDateTime(a.updated_at)}</p>
+    </div>
+  `).join('');
+
+  // 分类占比
+  const total = Object.values(catMap).reduce((a, b) => a + b, 0);
+  const catList = document.getElementById('dash-cat-list');
+  catList.innerHTML = Object.entries(catMap)
+    .sort((a, b) => b[1] - a[1])
+    .map(([cat, amt]) => {
+      const pct = total ? Math.round(amt / total * 100) : 0;
+      return `
+        <div class="flex items-center gap-2">
+          <span class="text-xs text-gray-500 w-20 shrink-0">${escHtml(cat)}</span>
+          <div class="flex-1 bg-gray-100 rounded-full h-2">
+            <div class="bg-blue-400 h-2 rounded-full" style="width:${pct}%"></div>
+          </div>
+          <span class="text-xs text-gray-600 w-16 text-right">${fmtMoney(amt)} (${pct}%)</span>
+        </div>
+      `;
+    }).join('');
+}
+
+// ================================================================
+// 收支流水列表
+// ================================================================
+let txOffset = 0;
+
+async function loadTransactions(reset = true) {
+  if (reset) txOffset = 0;
+
+  const typeFilter       = document.getElementById('filter-type').value;
+  const recordTypeFilter = document.getElementById('filter-record-type').value;
+  const periodFilter     = document.getElementById('filter-period').value;
+
+  let query = sb.from('transactions')
+    .select('*, accounts(account_name)', { count: 'exact' })
+    .order(txSortCol, { ascending: txSortAsc })
+    .range(txOffset, txOffset + TX_PAGE_SIZE - 1);
+
+  if (typeFilter)       query = query.eq('tx_type', typeFilter);
+  if (recordTypeFilter) query = query.eq('record_type', recordTypeFilter);
+  if (periodFilter)     query = query.eq('billing_period', periodFilter);
+
+  const { data: txs, count } = await query;
+  const list = txs || [];
+
+  // 移动端卡片
+  const cardList = document.getElementById('tx-card-list');
+  if (reset) cardList.innerHTML = '';
+  cardList.innerHTML += list.map(t => renderTxCard(t)).join('');
+
+  // 电脑端表格
+  const tbody = document.getElementById('tx-table-body');
+  if (reset) tbody.innerHTML = '';
+  tbody.innerHTML += list.map(t => renderTxRow(t)).join('');
+
+  // 加载更多按钮
+  const btnMore = document.getElementById('btn-load-more');
+  txOffset += list.length;
+  btnMore.classList.toggle('hidden', txOffset >= count);
+}
+
+function loadMore() {
+  loadTransactions(false);
+}
+
+function clearFilters() {
+  document.getElementById('filter-type').value = '';
+  document.getElementById('filter-record-type').value = '';
+  document.getElementById('filter-period').value = '';
+  loadTransactions();
+}
+
+function sortBy(col) {
+  if (txSortCol === col) txSortAsc = !txSortAsc;
+  else { txSortCol = col; txSortAsc = false; }
+  // 更新箭头
+  ['serial_no','transaction_date','amount'].forEach(c => {
+    const el = document.getElementById('sort-' + c);
+    if (el) el.textContent = c === txSortCol ? (txSortAsc ? '↑' : '↓') : '';
+  });
+  loadTransactions();
+}
+
+function rowClass(t) {
+  if (t.record_type === 'reversal')   return 'row-reversal';
+  if (t.record_type === 'correction') return 'row-correction';
+  if (t.lock_status  === 'locked')    return 'row-locked';
+  return '';
+}
+
+function renderTxCard(t) {
+  const cls = rowClass(t);
+  const isLocked  = t.lock_status === 'locked';
+  const canEdit   = !isLocked && canBookkeep();
+  const accountName = t.accounts?.account_name || '--';
+
+  return `
+    <div class="tx-card bg-white p-4 ${cls}">
+      <div class="flex justify-between items-start mb-1">
+        <div>
+          <span class="text-base font-bold ${t.tx_type === 'income' ? 'text-green-600' : 'text-red-500'}">
+            ${t.tx_type === 'income' ? '+' : '-'}${fmtMoney(Math.abs(t.amount))}
+          </span>
+          <span class="ml-2 text-xs text-gray-400">${escHtml(t.category)}</span>
+        </div>
+        <span class="text-xs text-gray-400">${t.transaction_date}</span>
+      </div>
+      <div class="text-xs text-gray-500 mb-2">
+        ${escHtml(accountName)} · ${escHtml(t.counterparty)}
+        ${t.description ? `<br><span class="text-gray-400">${escHtml(t.description.slice(0,40))}${t.description.length>40?'…':''}</span>` : ''}
+      </div>
+      <div class="flex items-center justify-between">
+        <span class="text-[10px] text-gray-300">${t.serial_no}</span>
+        <div class="flex gap-2">
+          ${canEdit ? `
+            <button onclick="openReversal('${t.id}')"
+              class="btn-touch text-xs px-3 py-1.5 rounded-lg bg-red-50 text-red-600 border border-red-200 min-h-[44px]">
+              红字冲销
+            </button>
+            <button onclick="openCorrection('${t.id}')"
+              class="btn-touch text-xs px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 min-h-[44px]">
+              蓝字补录
+            </button>
+          ` : ''}
+          ${isLocked && canBookkeep() ? `
+            <button onclick="openModifyLocked('${t.id}')"
+              class="btn-touch text-xs px-3 py-1.5 rounded-lg bg-orange-50 text-orange-600 border border-orange-200 min-h-[44px]">
+              申请修改
+            </button>
+          ` : ''}
+          ${isLocked ? `<span class="text-[10px] text-gray-400 self-center">🔒 已锁定</span>` : ''}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderTxRow(t) {
+  const cls = rowClass(t);
+  const isLocked = t.lock_status === 'locked';
+  const canEdit  = !isLocked && canBookkeep();
+  const accountName = t.accounts?.account_name || '--';
+
+  const typeBadge = t.record_type === 'reversal'
+    ? `<span class="text-xs px-1.5 py-0.5 rounded bg-red-100 text-red-600">冲销</span>`
+    : t.record_type === 'correction'
+    ? `<span class="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-600">补录</span>`
+    : `<span class="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">正常</span>`;
+
+  const lockBadge = t.lock_status === 'locked'
+    ? `<span class="text-xs text-gray-400">🔒</span>`
+    : t.lock_status === 'pending_lock'
+    ? `<span class="text-xs text-orange-400">⏳</span>`
+    : '';
+
+  return `
+    <tr class="zebra-row border-b border-gray-100 hover:bg-blue-50/30 transition-colors ${cls}">
+      <td class="px-3 py-2 text-xs text-gray-400 whitespace-nowrap">${escHtml(t.serial_no)}</td>
+      <td class="px-3 py-2 text-sm whitespace-nowrap">${t.transaction_date}</td>
+      <td class="px-3 py-2">
+        <span class="${t.tx_type === 'income' ? 'text-green-600' : 'text-red-500'} text-xs font-medium">
+          ${t.tx_type === 'income' ? '↑ 收入' : '↓ 支出'}
+        </span>
+      </td>
+      <td class="px-3 py-2 text-right font-mono font-medium text-sm whitespace-nowrap">
+        ${t.tx_type === 'income' ? '+' : '-'}${fmtMoney(Math.abs(t.amount))}
+      </td>
+      <td class="px-3 py-2 text-sm">${escHtml(t.category)}</td>
+      <td class="px-3 py-2 text-sm text-gray-500">${escHtml(accountName)}</td>
+      <td class="px-3 py-2 text-sm">${escHtml(t.counterparty)}</td>
+      <td class="px-3 py-2 text-center">${lockBadge}</td>
+      <td class="px-3 py-2 text-center">${typeBadge}</td>
+      <td class="px-3 py-2 text-right whitespace-nowrap">
+        ${canEdit ? `
+          <button onclick="openReversal('${t.id}')"
+            class="text-xs px-2 py-1 rounded text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition-colors">
+            冲销
+          </button>
+          <button onclick="openCorrection('${t.id}')"
+            class="text-xs px-2 py-1 rounded text-blue-600 hover:bg-blue-50 border border-transparent hover:border-blue-200 transition-colors">
+            补录
+          </button>
+        ` : ''}
+        ${isLocked && canBookkeep() ? `
+          <button onclick="openModifyLocked('${t.id}')"
+            class="text-xs px-2 py-1 rounded text-orange-600 hover:bg-orange-50 border border-transparent hover:border-orange-200 transition-colors">
+            申请修改
+          </button>
+        ` : ''}
+      </td>
+    </tr>
+  `;
+}
+
+// ================================================================
+// 新增流水
+// ================================================================
+function openAddModal(prefill = null) {
+  document.getElementById('modal-tx-title').textContent = '新增记录';
+  document.getElementById('form-tx').reset();
+  document.getElementById('tx-edit-id').value = '';
+  document.getElementById('tx-record-type').value = prefill?.record_type || 'normal';
+  document.getElementById('tx-related-serial').value = prefill?.related_serial || '';
+  document.getElementById('file-preview').innerHTML = '';
+
+  // 默认今天
+  document.getElementById('tx-date').value = new Date().toISOString().slice(0, 10);
+
+  // 预填账户选项
+  const sel = document.getElementById('tx-account');
+  sel.innerHTML = '<option value="">请选择...</option>' +
+    allAccounts.map(a => `<option value="${a.id}">${escHtml(a.account_name)}</option>`).join('');
+
+  if (prefill) {
+    if (prefill.account_id) sel.value = prefill.account_id;
+    if (prefill.category)   document.getElementById('tx-category').value = prefill.category;
+    if (prefill.counterparty) document.getElementById('tx-counterparty').value = prefill.counterparty;
+    if (prefill.description) document.getElementById('tx-description').value = prefill.description;
+    if (prefill.tx_type)    setTxType(prefill.tx_type);
+    if (prefill.modal_title) document.getElementById('modal-tx-title').textContent = prefill.modal_title;
+  } else {
+    setTxType('income');
+  }
+
+  openModal('modal-tx');
+}
+
+function setTxType(type) {
+  document.getElementById('tx-type').value = type;
+  const btnI = document.getElementById('btn-income');
+  const btnE = document.getElementById('btn-expense');
+  if (type === 'income') {
+    btnI.className = 'flex-1 btn-touch py-2.5 rounded-lg text-sm font-medium border-2 border-green-400 text-green-600 bg-green-50 transition-all';
+    btnE.className = 'flex-1 btn-touch py-2.5 rounded-lg text-sm font-medium border-2 border-gray-200 text-gray-400 transition-all';
+  } else {
+    btnI.className = 'flex-1 btn-touch py-2.5 rounded-lg text-sm font-medium border-2 border-gray-200 text-gray-400 transition-all';
+    btnE.className = 'flex-1 btn-touch py-2.5 rounded-lg text-sm font-medium border-2 border-red-400 text-red-600 bg-red-50 transition-all';
+  }
+}
+
+async function submitTransaction(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btn-submit-tx');
+  btn.disabled = true;
+  btn.textContent = '提交中...';
+
+  try {
+    const txType    = document.getElementById('tx-type').value;
+    const amount    = parseFloat(document.getElementById('tx-amount').value);
+    const accountId = document.getElementById('tx-account').value;
+    const recordType = document.getElementById('tx-record-type').value;
+
+    // 余额校验（支出时）
+    if (txType === 'expense' && recordType !== 'reversal') {
+      const acc = allAccounts.find(a => a.id === accountId);
+      if (acc && parseFloat(acc.current_balance) < amount) {
+        showToast('余额不足，无法记录此笔支出', 'warning');
+        return;
+      }
+    }
+
+    const payload = {
+      transaction_date: document.getElementById('tx-date').value,
+      tx_type:    txType,
+      amount:     recordType === 'reversal' ? -Math.abs(amount) : amount,
+      category:   document.getElementById('tx-category').value,
+      account_id: accountId,
+      counterparty: document.getElementById('tx-counterparty').value,
+      description:  document.getElementById('tx-description').value || null,
+      record_type:  recordType,
+      related_serial: document.getElementById('tx-related-serial').value || null,
+      creator_id:   currentUser.id,
+      creator_name: currentUser.name,
+      serial_no:    '',   // 触发器自动生成
+    };
+
+    const { error } = await sb.from('transactions').insert(payload);
+    if (error) throw error;
+
+    showToast('记录已保存', 'success');
+    closeModal('modal-tx');
+    await loadAccounts();
+    loadTransactions();
+    if (currentPage === 'dashboard') loadDashboard();
+  } catch(err) {
+    showToast('保存失败：' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '提交';
+  }
+}
+
+// ================================================================
+// 冲销
+// ================================================================
+async function openReversal(txId) {
+  const { data: tx } = await sb.from('transactions')
+    .select('*, accounts(account_name)')
+    .eq('id', txId)
+    .single();
+
+  document.getElementById('reversal-tx-id').value = txId;
+  document.getElementById('reversal-preview').innerHTML = `
+    <div class="space-y-1">
+      <div><span class="text-gray-400">流水号：</span>${escHtml(tx.serial_no)}</div>
+      <div><span class="text-gray-400">金额：</span>
+        <span class="font-bold text-red-600">${tx.tx_type === 'income' ? '+' : '-'}${fmtMoney(Math.abs(tx.amount))}</span>
+      </div>
+      <div><span class="text-gray-400">分类：</span>${escHtml(tx.category)}</div>
+      <div><span class="text-gray-400">交易对方：</span>${escHtml(tx.counterparty)}</div>
+      <div><span class="text-gray-400">账户：</span>${escHtml(tx.accounts?.account_name || '--')}</div>
+    </div>
+  `;
+  openModal('modal-reversal');
+}
+
+async function confirmReversal() {
+  const txId = document.getElementById('reversal-tx-id').value;
+  try {
+    const { data: orig } = await sb.from('transactions')
+      .select('*').eq('id', txId).single();
+
+    await sb.from('transactions').insert({
+      transaction_date: orig.transaction_date,
+      tx_type:          orig.tx_type,
+      amount:           -Math.abs(orig.amount),
+      category:         orig.category,
+      account_id:       orig.account_id,
+      counterparty:     orig.counterparty,
+      description:      (orig.description || '') + `【冲销-原流水号${orig.serial_no}】`,
+      record_type:      'reversal',
+      related_serial:   orig.serial_no,
+      creator_id:       currentUser.id,
+      creator_name:     currentUser.name,
+      serial_no:        '',
+    });
+
+    showToast('冲销成功', 'success');
+    closeModal('modal-reversal');
+    await loadAccounts();
+    loadTransactions();
+  } catch(err) {
+    showToast('冲销失败：' + err.message, 'error');
+  }
+}
+
+// ================================================================
+// 补录（基于已冲销的原记录）
+// ================================================================
+async function openCorrection(txId) {
+  const { data: orig } = await sb.from('transactions')
+    .select('*').eq('id', txId).single();
+
+  openAddModal({
+    record_type:   'correction',
+    related_serial: orig.serial_no,
+    account_id:    orig.account_id,
+    category:      orig.category,
+    counterparty:  orig.counterparty,
+    description:   '',
+    tx_type:       orig.tx_type,
+    modal_title:   '蓝字补录（填写正确内容）',
+  });
+}
+
+// ================================================================
+// 申请修改已锁定记录
+// ================================================================
+function openModifyLocked(txId) {
+  document.getElementById('modify-tx-id').value = txId;
+  document.getElementById('modify-reason').value = '';
+  openModal('modal-modify-locked');
+}
+
+async function submitModifyRequest(e) {
+  e.preventDefault();
+  const txId  = document.getElementById('modify-tx-id').value;
+  const reason = document.getElementById('modify-reason').value;
+
+  try {
+    const { data: tx } = await sb.from('transactions').select('serial_no').eq('id', txId).single();
+    await sb.from('approvals').insert({
+      approval_type: 'modify_locked',
+      title:         `申请修改已锁定记录 ${tx.serial_no}`,
+      target_tx_id:  txId,
+      reason,
+      status:        'pending',
+      initiated_by:  currentUser.id,
+    });
+
+    showToast('申请已提交，等待股东审批', 'success');
+    closeModal('modal-modify-locked');
+  } catch(err) {
+    showToast('提交失败：' + err.message, 'error');
+  }
+}
+
+// ================================================================
+// 账户管理
+// ================================================================
+async function loadAccounts() {
+  const { data } = await sb.from('accounts').select('*').order('account_name');
+  allAccounts = data || [];
+}
+
+async function loadAccountsPage() {
+  const container = document.getElementById('accounts-list');
+  container.innerHTML = allAccounts.map(a => `
+    <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100">
+      <div class="flex justify-between items-start">
+        <h3 class="font-semibold text-gray-700">${escHtml(a.account_name)}</h3>
+        <span class="text-xs text-gray-300">${fmtDateTime(a.updated_at)}</span>
+      </div>
+      <p class="text-3xl font-bold mt-2 ${parseFloat(a.current_balance) < 0 ? 'text-red-500' : 'text-gray-800'}">
+        ${fmtMoney(a.current_balance)}
+      </p>
+    </div>
+  `).join('');
+}
+
+function openAccountModal() {
+  document.getElementById('account-name').value = '';
+  document.getElementById('account-balance').value = '0.00';
+  openModal('modal-account');
+}
+
+async function submitAccount(e) {
+  e.preventDefault();
+  const name    = document.getElementById('account-name').value.trim();
+  const balance = parseFloat(document.getElementById('account-balance').value) || 0;
+
+  try {
+    await sb.from('accounts').insert({ account_name: name, current_balance: balance });
+    showToast('账户已创建', 'success');
+    closeModal('modal-account');
+    await loadAccounts();
+    loadAccountsPage();
+  } catch(err) {
+    showToast('创建失败：' + err.message, 'error');
+  }
+}
+
+// ================================================================
+// 审计日志
+// ================================================================
+async function loadAuditLogs() {
+  const { data: logs } = await sb.from('audit_logs')
+    .select('*')
+    .order('operated_at', { ascending: false })
+    .limit(100);
+
+  const tbody = document.getElementById('audit-table-body');
+  tbody.innerHTML = (logs || []).map(l => {
+    const actionMap = {
+      create:'新增', update:'修改', reversal:'冲销',
+      correction:'补录', lock:'锁定', unlock:'解锁', pending_lock:'待锁定'
+    };
+    const before = l.before_value ? JSON.stringify(l.before_value).slice(0, 60) + '…' : '--';
+    const after  = l.after_value  ? JSON.stringify(l.after_value).slice(0, 60)  + '…' : '--';
+    return `
+      <tr class="border-b border-gray-50 hover:bg-gray-50 text-xs md:text-sm">
+        <td class="px-3 py-2 whitespace-nowrap">${fmtDateTime(l.operated_at)}</td>
+        <td class="px-3 py-2">${escHtml(l.operator_name)}</td>
+        <td class="px-3 py-2 text-gray-400">${escHtml(l.operator_ip || '--')}</td>
+        <td class="px-3 py-2">
+          <span class="px-1.5 py-0.5 rounded text-xs bg-gray-100">${actionMap[l.action_type] || l.action_type}</span>
+        </td>
+        <td class="px-3 py-2 text-gray-400">${escHtml(l.target_table)}</td>
+        <td class="px-3 py-2 text-gray-400 font-mono text-[11px]">${escHtml(l.target_serial || '--')}</td>
+        <td class="px-3 py-2 max-w-xs">
+          <details class="cursor-pointer">
+            <summary class="text-blue-500">查看变更</summary>
+            <div class="mt-1 space-y-1">
+              <div class="text-red-400">前：${escHtml(before)}</div>
+              <div class="text-green-600">后：${escHtml(after)}</div>
+            </div>
+          </details>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// ================================================================
+// 审批中心
+// ================================================================
+async function loadApprovals() {
+  const { data: approvals } = await sb.from('approvals')
+    .select('*, app_users!initiated_by(name)')
+    .order('initiated_at', { ascending: false });
+
+  const container = document.getElementById('approvals-list');
+  container.innerHTML = (approvals || []).map(ap => {
+    const statusMap = { pending:'⏳ 待审批', approved:'✅ 已通过', rejected:'❌ 已拒绝' };
+    const votes = ap.votes || [];
+    const approveCount = votes.filter(v => v.vote === 'approve').length;
+    const rejectCount  = votes.filter(v => v.vote === 'reject').length;
+    const myVote = votes.find(v => v.user_id === currentUser.id);
+    const canVote = ap.status === 'pending' && !myVote;
+
+    return `
+      <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+        <div class="flex items-start justify-between mb-2">
+          <h4 class="font-semibold text-sm">${escHtml(ap.title)}</h4>
+          <span class="text-xs text-gray-400">${statusMap[ap.status]}</span>
+        </div>
+        <p class="text-xs text-gray-400 mb-2">
+          发起人：${escHtml(ap.app_users?.name || '--')} · ${fmtDateTime(ap.initiated_at)}
+        </p>
+        ${ap.reason ? `<p class="text-xs text-gray-500 mb-2">原因：${escHtml(ap.reason)}</p>` : ''}
+        <div class="flex items-center gap-3 text-xs text-gray-400 mb-3">
+          <span class="text-green-600">✓ ${approveCount} 人同意</span>
+          <span class="text-red-500">✗ ${rejectCount} 人拒绝</span>
+          ${myVote ? `<span class="text-gray-400">（你已投票：${myVote.vote === 'approve' ? '同意' : '拒绝'}）</span>` : ''}
+        </div>
+        ${canVote ? `
+          <button onclick="openVoteModal('${ap.id}', \`${escHtml(ap.title)}\`)"
+            class="btn-touch w-full btn-bottom rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700">
+            参与投票
+          </button>
+        ` : ''}
+      </div>
+    `;
+  }).join('') || '<p class="text-sm text-gray-400">暂无审批事项</p>';
+}
+
+function openVoteModal(approvalId, title) {
+  document.getElementById('vote-approval-id').value = approvalId;
+  document.getElementById('vote-info').textContent = title;
+  openModal('modal-vote');
+}
+
+async function castVote(vote) {
+  const approvalId = document.getElementById('vote-approval-id').value;
+  try {
+    const { data: ap } = await sb.from('approvals').select('*').eq('id', approvalId).single();
+    const votes = ap.votes || [];
+    votes.push({ user_id: currentUser.id, name: currentUser.name, vote, voted_at: new Date().toISOString() });
+
+    // 判断是否达到通过条件（2票同意）
+    const approveCount = votes.filter(v => v.vote === 'approve').length;
+    const rejectCount  = votes.filter(v => v.vote === 'reject').length;
+    let newStatus = ap.status;
+    if (approveCount >= 2) newStatus = 'approved';
+    else if (rejectCount >= 2) newStatus = 'rejected';
+
+    await sb.from('approvals').update({ votes, status: newStatus, resolved_at: newStatus !== 'pending' ? new Date().toISOString() : null })
+      .eq('id', approvalId);
+
+    // 账期锁定：审批通过后批量锁定
+    if (newStatus === 'approved' && ap.approval_type === 'period_lock' && ap.billing_period) {
+      await sb.rpc('approve_period_lock', {
+        p_billing_period: ap.billing_period,
+        p_operator_id:    currentUser.id,
+        p_operator_name:  currentUser.name
+      });
+    }
+
+    showToast('投票成功', 'success');
+    closeModal('modal-vote');
+    loadApprovals();
+  } catch(err) {
+    showToast('投票失败：' + err.message, 'error');
+  }
+}
+
+// ================================================================
+// 角色配置
+// ================================================================
+async function loadSettings() {
+  const { data: users } = await sb.from('app_users').select('*').order('created_at');
+  const container = document.getElementById('users-config-list');
+  container.innerHTML = (users || []).map(u => `
+    <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex items-center justify-between">
+      <div>
+        <p class="font-medium text-sm">${escHtml(u.name)}</p>
+        <p class="text-xs text-gray-400">${escHtml(u.feishu_uid)}</p>
+      </div>
+      <select onchange="updateUserRole('${u.id}', this.value)"
+        class="border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none">
+        <option value="shareholder_bookkeeper" ${u.role === 'shareholder_bookkeeper' ? 'selected' : ''}>股东记账员</option>
+        <option value="bookkeeper"             ${u.role === 'bookkeeper'             ? 'selected' : ''}>财务记账员</option>
+        <option value="shareholder_viewer"     ${u.role === 'shareholder_viewer'     ? 'selected' : ''}>股东查看者</option>
+      </select>
+    </div>
+  `).join('');
+}
+
+async function updateUserRole(userId, role) {
+  await sb.from('app_users').update({ role }).eq('id', userId);
+  showToast('角色已更新', 'success');
+}
+
+// ================================================================
+// 文件上传（Supabase Storage）
+// ================================================================
+let pendingFiles = [];
+
+async function handleFileSelect(e) {
+  const files = Array.from(e.target.files);
+  for (const file of files) {
+    // 图片自动压缩
+    if (file.type.startsWith('image/') && file.size > 500 * 1024) {
+      const compressed = await compressImage(file, 1200, 0.7);
+      pendingFiles.push(compressed);
+    } else {
+      pendingFiles.push(file);
+    }
+  }
+  renderFilePreview();
+}
+
+// 图片压缩：最大宽度 maxW，质量 quality
+function compressImage(file, maxW, quality) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let w = img.width, h = img.height;
+        if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        canvas.toBlob(
+          (blob) => {
+            resolve(new File([blob], file.name, { type: 'image/jpeg' }));
+          },
+          'image/jpeg', quality
+        );
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderFilePreview() {
+  const preview = document.getElementById('file-preview');
+  preview.innerHTML = pendingFiles.map((f, i) => `
+    <div class="flex items-center gap-1 text-xs bg-gray-100 rounded px-2 py-1">
+      <span>📎</span>
+      <span class="max-w-[100px] truncate">${escHtml(f.name)}</span>
+      <span class="text-gray-300">${(f.size / 1024).toFixed(0)}KB</span>
+      <button type="button" onclick="removeFile(${i})" class="text-red-400 ml-1">×</button>
+    </div>
+  `).join('');
+}
+
+function removeFile(index) {
+  pendingFiles.splice(index, 1);
+  renderFilePreview();
+}
+
+async function uploadFiles() {
+  if (!pendingFiles.length) return [];
+  const urls = [];
+  for (const file of pendingFiles) {
+    const path = `vouchers/${currentUser.id}/${Date.now()}-${file.name}`;
+    const { data, error } = await sb.storage.from('attachments').upload(path, file);
+    if (!error) {
+      const { data: urlData } = sb.storage.from('attachments').getPublicUrl(path);
+      urls.push(urlData.publicUrl);
+    }
+  }
+  pendingFiles = [];
+  return urls;
+}
+
+// ================================================================
+// 权限辅助
+// ================================================================
+function canBookkeep() {
+  return currentUser && ['shareholder_bookkeeper', 'bookkeeper'].includes(currentUser.role);
+}
+
+// ================================================================
+// 模态框工具
+// ================================================================
+function openModal(id) {
+  document.getElementById(id).classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+function closeModal(id) {
+  document.getElementById(id).classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+// ================================================================
+// Toast 提示
+// ================================================================
+let toastTimer;
+function showToast(msg, type = 'info') {
+  const toast = document.getElementById('toast');
+  const inner = document.getElementById('toast-inner');
+  const icon  = document.getElementById('toast-icon');
+  const text  = document.getElementById('toast-msg');
+
+  const styles = {
+    success: 'bg-green-500 text-white',
+    error:   'bg-red-500 text-white',
+    warning: 'bg-[#FFF3E0] text-[#E65100] border border-orange-200',
+    info:    'bg-blue-500 text-white',
+  };
+  const icons = { success:'✓', error:'✕', warning:'⚠️', info:'ℹ' };
+
+  inner.className = `w-full md:max-w-lg md:mx-auto md:mt-4 md:rounded-lg px-4 py-3 text-sm font-medium shadow-lg flex items-center gap-2 ${styles[type]}`;
+  icon.textContent  = icons[type];
+  text.textContent  = msg;
+  toast.classList.remove('hidden');
+
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.add('hidden'), 3500);
+}
+
+// ================================================================
+// 格式化工具
+// ================================================================
+function fmtMoney(val) {
+  const n = parseFloat(val) || 0;
+  return '¥' + n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function fmtDateTime(str) {
+  if (!str) return '--';
+  return new Date(str).toLocaleString('zh-CN', {
+    month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit'
+  });
+}
+
+function escHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// ================================================================
+// 隐藏加载遮罩
+// ================================================================
+function hideLoading() {
+  document.getElementById('loading-mask').style.opacity = '0';
+  setTimeout(() => document.getElementById('loading-mask').style.display = 'none', 300);
+}
+
+// ================================================================
+// 月度账期自动锁定（前端定时检查，实际应配合后端 Cron）
+// 每次打开应用时检查是否需要发起上月锁定审批
+// ================================================================
+async function checkPeriodLock() {
+  const now = new Date();
+  if (now.getDate() !== 1) return; // 只在每月1日检查
+
+  const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const period = lastMonth.toISOString().slice(0, 7);
+
+  // 检查是否已有该账期的锁定审批
+  const { data } = await sb.from('approvals')
+    .select('id')
+    .eq('approval_type', 'period_lock')
+    .eq('billing_period', period)
+    .limit(1);
+
+  if (data && data.length > 0) return; // 已发起过
+
+  // 自动发起锁定审批
+  await sb.rpc('trigger_period_lock', {
+    p_billing_period: period,
+    p_operator_id:   currentUser.id,
+    p_operator_name: currentUser.name
+  });
+
+  await sb.from('approvals').insert({
+    approval_type:  'period_lock',
+    title:          `锁定 ${period} 月度账目`,
+    billing_period: period,
+    status:         'pending',
+    initiated_by:   currentUser.id,
+  });
+
+  showToast(`已自动发起 ${period} 账期锁定审批`, 'info');
+}
+
+// ================================================================
+// 启动
+// ================================================================
+document.addEventListener('DOMContentLoaded', async () => {
+  await init();
+  await checkPeriodLock();
+});
+</script>
+
+</body>
+</html>
