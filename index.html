@@ -205,7 +205,7 @@
     </button>
     <button onclick="switchPage('settings')" data-page="settings"
       class="nav-btn w-full text-left text-sm text-gray-600 flex items-center gap-2.5 py-2 px-2 rounded-lg hover:bg-gray-100 transition-colors">
-      <span class="text-base flex items-center"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.137-.33.31-.517.5-.562l1.261-.956a.96.96 0 011.287.737l.94 2.062a1.05 1.05 0 00.253.852l1.875.702a1.05 1.05 0 01.602 1.2l-1.387 1.388a1.05 1.05 0 00-.273.567l-.428 1.538a1.05 1.05 0 01-1.04.73l-1.875-.703a1.05 1.05 0 00-.852.253l-.956 1.26a.96.96 0 01-.737 1.287l-2.062-.94a1.05 1.05 0 00-.852-.253l-1.388 1.387a1.05 1.05 0 01-1.2-.602l-.702-1.875a1.05 1.05 0 00-.567-.273l-1.538.428a1.05 1.05 0 01-.73-1.04l.94-2.062a1.05 1.05 0 00-.253-.852l-1.26-.956a.96.96 0 010-1.287l.956-1.26a1.05 1.05 0 00.253-.852l1.387-1.388a1.05 1.05 0 011.2-.602l.702 1.875a1.05 1.05 0 00.567.273l1.538-.428a1.05 1.05 0 011.04-.73l1.875.703a1.05 1.05 0 00.852.253l.956-1.26A.96.96 0 0113.075.286l2.062.94a1.05 1.05 0 00.852.253l1.388-1.387a1.05 1.05 0 011.2.602l.702 1.875a1.05 1.05 0 00.567.273l1.538-.428a1.05 1.05 0 01.73 1.04l-.94 2.062a1.05 1.05 0 00.253.852l1.26.956a.96.96 0 010 1.287l-.956 1.26a1.05 1.05 0 00.253.852l1.387 1.388a1.05 1.05 0 01-.602 1.2l-1.875.702A1.05 1.05 0 007.64 3.65l.428-1.538A1.05 1.05 0 018.53 1.37l1.875.703a1.05 1.05 0 00.852-.253zM12 8v4m0 4h.01"/></svg></span><span>角色配置</span>
+      <span class="text-base flex items-center"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></span><span>角色配置</span>
     </button>
   </div>
 </aside>
@@ -268,7 +268,7 @@
         <div class="flex items-center gap-2">
           <button onclick="openImportModal()"
             class="hidden md:flex btn-touch items-center gap-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm px-3 py-2 rounded-lg transition-colors">
-            📤 批量导入
+            <span class="flex items-center"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/></svg></span> 批量导入
           </button>
           <!-- 电脑端：新增按钮在顶部；移动端：固定底部 -->
           <button onclick="openAddModal()" id="btn-add-desktop"
@@ -367,7 +367,7 @@
       <h2 class="text-lg font-bold text-gray-800">审计日志</h2>
       <button onclick="exportAuditCSV()"
         class="btn-touch flex items-center gap-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm px-3 py-2 rounded-lg transition-colors">
-        📥 导出 CSV
+        <span class="flex items-center"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/></svg></span> 导出 CSV
       </button>
     </div>
     <div class="flex flex-wrap gap-2 text-xs mb-3">
@@ -441,7 +441,7 @@
       <div class="pt-4 border-t border-gray-100">
         <button onclick="openFeishuNotifyModal()"
           class="btn-touch w-full flex items-center justify-between px-4 py-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
-          <span class="text-sm text-gray-700">🔔 飞书通知设置</span>
+          <span class="text-sm text-gray-700 flex items-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>飞书通知设置</span>
           <span class="text-gray-400 text-xs">Webhook</span>
         </button>
       </div>
@@ -676,7 +676,7 @@
 <div id="modal-reversal" class="fixed inset-0 hidden modal-backdrop bg-black/30" style="z-index:60">
   <div class="absolute inset-x-4 top-[15%] md:relative md:inset-auto md:mx-auto md:my-8 md:max-w-sm
               bg-white rounded-2xl shadow-2xl p-5">
-    <h3 class="font-bold text-red-600 mb-2">⚠️ 确认红字冲销</h3>
+    <h3 class="font-bold text-red-600 mb-2">确认红字冲销</h3>
     <p class="text-sm text-gray-500 mb-3">将对以下记录执行冲销操作，此操作不可撤销：</p>
     <div id="reversal-preview" class="bg-red-50 rounded-lg p-3 text-sm mb-4"></div>
     <input type="hidden" id="reversal-tx-id" />
@@ -710,11 +710,11 @@
         class="flex-1 btn-bottom rounded-xl border border-gray-200 text-sm text-gray-500">稍后</button>
       <button onclick="castVote('reject')"
         class="flex-1 btn-bottom rounded-xl border-2 border-red-400 text-red-600 text-sm font-medium hover:bg-red-50">
-        ✗ 拒绝
+        <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>拒绝
       </button>
       <button onclick="castVote('approve')"
         class="flex-1 btn-bottom rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium">
-        ✓ 同意
+        <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>同意
       </button>
     </div>
   </div>
@@ -764,7 +764,7 @@
   <div class="absolute inset-x-0 bottom-0 md:relative md:inset-auto md:mx-auto md:my-8 md:max-w-lg
               bg-white rounded-t-2xl md:rounded-2xl shadow-2xl p-5 max-h-[80vh] overflow-y-auto">
     <div class="flex items-center justify-between mb-4">
-      <h3 class="font-bold">📤 批量导入账单</h3>
+      <h3 class="font-bold">批量导入账单</h3>
       <button onclick="closeModal('modal-import')" class="text-gray-400 text-2xl w-8 h-8 flex items-center justify-center">×</button>
     </div>
     <div class="space-y-4">
@@ -779,7 +779,7 @@
       <div>
         <button onclick="downloadImportTemplate()"
           class="w-full btn-touch rounded-lg border-2 border-dashed border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-600 text-sm py-3 transition-colors">
-          📥 下载导入模板
+          下载导入模板
         </button>
       </div>
       <div>
@@ -822,7 +822,7 @@
   <div class="absolute inset-x-4 top-[15%] md:relative md:inset-auto md:mx-auto md:my-8 md:max-w-sm
               bg-white rounded-2xl shadow-2xl p-5">
     <div class="flex items-center justify-between mb-4">
-      <h3 class="font-bold">🔔 飞书通知设置</h3>
+      <h3 class="font-bold">飞书通知设置</h3>
       <button onclick="closeModal('modal-feishu-notify')" class="text-gray-400 text-2xl w-8 h-8 flex items-center justify-center">×</button>
     </div>
     <div class="space-y-4">
@@ -886,7 +886,7 @@ function updateDarkModeUI() {
   const icon = document.getElementById('dark-mode-icon');
   const text = document.getElementById('dark-mode-text');
   if (icon && text) {
-    icon.textContent = isDarkMode ? '☀️' : '🌙';
+    icon.innerHTML = isDarkMode ? '<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>' : '<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9 9 0 008.354-5.646z"/></svg>';
     text.textContent = isDarkMode ? '日间模式' : '夜间模式';
   }
 }
@@ -1298,7 +1298,7 @@ function renderTxCard(t) {
               申请修改
             </button>
           ` : ''}
-          ${isLocked ? `<span class="text-[10px] text-gray-400 self-center">🔒 已锁定</span>` : ''}
+          ${isLocked ? `<span class="text-[10px] text-gray-400 self-center inline-flex items-center gap-0.5"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>已锁定</span>` : ''}
         </div>
       </div>
     </div>
@@ -1318,9 +1318,9 @@ function renderTxRow(t) {
     : `<span class="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">正常</span>`;
 
   const lockBadge = t.lock_status === 'locked'
-    ? `<span class="text-xs text-gray-400">🔒</span>`
+    ? `<span class="text-xs text-gray-400 inline-flex items-center"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg></span>`
     : t.lock_status === 'pending_lock'
-    ? `<span class="text-xs text-orange-400">⏳</span>`
+    ? `<span class="text-xs text-orange-400 inline-flex items-center"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></span>`
     : '';
 
   return `
@@ -2010,7 +2010,7 @@ async function sendFeishuNotify(title, content) {
       body: JSON.stringify({
         msg_type: 'interactive',
         card: {
-          header: { title: { tag: 'plain_text', content: '📒 股东记账系统' }, template: 'blue' },
+          header: { title: { tag: 'plain_text', content: '股东记账系统' }, template: 'blue' },
           elements: [
             { tag: 'div', text: { tag: 'lark_md', content: `**${title}**\n${content}` } },
             { tag: 'div', text: { tag: 'plain_text', content: `操作人：${currentUser?.name || '--'}  时间：${new Date().toLocaleString('zh-CN')}` } }
@@ -2033,7 +2033,7 @@ async function loadApprovals() {
 
   const container = document.getElementById('approvals-list');
   container.innerHTML = (approvals || []).map(ap => {
-    const statusMap = { pending:'⏳ 待审批', approved:'✅ 已通过', rejected:'❌ 已拒绝' };
+    const statusMap = { pending:'<span class="inline-flex items-center gap-1"><svg class="w-3.5 h-3.5 text-yellow-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> 待审批</span>', approved:'<span class="inline-flex items-center gap-1"><svg class="w-3.5 h-3.5 text-green-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> 已通过</span>', rejected:'<span class="inline-flex items-center gap-1"><svg class="w-3.5 h-3.5 text-red-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg> 已拒绝</span>' };
     const votes = ap.votes || [];
     const approveCount = votes.filter(v => v.vote === 'approve').length;
     const rejectCount  = votes.filter(v => v.vote === 'reject').length;
@@ -2051,8 +2051,8 @@ async function loadApprovals() {
         </p>
         ${ap.reason ? `<p class="text-xs text-gray-500 mb-2">原因：${escHtml(ap.reason)}</p>` : ''}
         <div class="flex items-center gap-3 text-xs text-gray-400 mb-3">
-          <span class="text-green-600">✓ ${approveCount} 人同意</span>
-          <span class="text-red-500">✗ ${rejectCount} 人拒绝</span>
+          <span class="text-green-600 inline-flex items-center gap-0.5"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>${approveCount} 人同意</span>
+          <span class="text-red-500 inline-flex items-center gap-0.5"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>${rejectCount} 人拒绝</span>
           ${myVote ? `<span class="text-gray-400">（你已投票：${myVote.vote === 'approve' ? '同意' : '拒绝'}）</span>` : ''}
         </div>
         ${canVote ? `
@@ -2090,10 +2090,10 @@ async function castVote(vote) {
       .eq('id', approvalId);
 
     // 每次投票都通知到飞书群
-    const voteLabel = vote === 'approve' ? '✅ 同意' : '❌ 拒绝';
+    const voteLabel = vote === 'approve' ? '同意' : '拒绝';
     const statusHint = newStatus === 'pending'
       ? `当前 ${approveCount} 同意 / ${rejectCount} 拒绝，还需 ${Math.max(0, 2 - approveCount)} 票同意`
-      : (newStatus === 'approved' ? '🎉 审批已通过！' : '❌ 审批已被拒绝');
+      : (newStatus === 'approved' ? '审批已通过！' : '审批已被拒绝');
     await sendFeishuNotify(
       `${currentUser.name} 参与了投票`,
       `**${ap.title}**\n${currentUser.name} 投了 ${voteLabel}\n${statusHint}`
@@ -2240,7 +2240,7 @@ function renderFilePreview() {
   const preview = document.getElementById('file-preview');
   preview.innerHTML = pendingFiles.map((f, i) => `
     <div class="flex items-center gap-1 text-xs bg-gray-100 rounded px-2 py-1">
-      <span>📎</span>
+      <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
       <span class="max-w-[100px] truncate">${escHtml(f.name)}</span>
       <span class="text-gray-300">${(f.size / 1024).toFixed(0)}KB</span>
       <button type="button" onclick="removeFile(${i})" class="text-red-400 ml-1">×</button>
@@ -2303,7 +2303,7 @@ function showToast(msg, type = 'info') {
     warning: 'bg-[#FFF3E0] text-[#E65100] border border-orange-200',
     info:    'bg-blue-500 text-white',
   };
-  const icons = { success:'✓', error:'✕', warning:'⚠️', info:'ℹ' };
+  const icons = { success:'✓', error:'✗', warning:'⚠', info:'ℹ' };
 
   inner.className = `w-full md:max-w-lg md:mx-auto md:mt-4 md:rounded-lg px-4 py-3 text-sm font-medium shadow-lg flex items-center gap-2 ${styles[type]}`;
   icon.textContent  = icons[type];
