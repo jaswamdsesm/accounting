@@ -2073,6 +2073,16 @@ async function castVote(vote) {
     await sb.from('approvals').update({ votes, status: newStatus, resolved_at: newStatus !== 'pending' ? new Date().toISOString() : null })
       .eq('id', approvalId);
 
+    // 每次投票都通知到飞书群
+    const voteLabel = vote === 'approve' ? '✅ 同意' : '❌ 拒绝';
+    const statusHint = newStatus === 'pending'
+      ? `当前 ${approveCount} 同意 / ${rejectCount} 拒绝，还需 ${Math.max(0, 2 - approveCount)} 票同意`
+      : (newStatus === 'approved' ? '🎉 审批已通过！' : '❌ 审批已被拒绝');
+    await sendFeishuNotify(
+      `${currentUser.name} 参与了投票`,
+      `**${ap.title}**\n${currentUser.name} 投了 ${voteLabel}\n${statusHint}`
+    );
+
     // 账期锁定：审批通过后批量锁定
     if (newStatus === 'approved' && ap.approval_type === 'period_lock' && ap.billing_period) {
       await sb.rpc('approve_period_lock', {
