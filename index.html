@@ -168,11 +168,25 @@
     html.dark .custom-sel-opt.sel { background: #1e3a5f; color: #60a5fa; }
     html.dark .custom-sel-opt-group { color: #64748b; }
 
-    /* 禁止移动端左右滚动 */
-    body { overflow-x: hidden; }
+    /* 禁止移动端左右滚动/滑动 */
+    body { overflow-x: hidden; touch-action: pan-y; }
     @media (max-width: 768px) {
-      body { overflow-x: hidden; }
-      .modal-content, .page-content { overflow-x: hidden; }
+      body, html { overflow-x: hidden; }
+      body { touch-action: pan-y; }
+      /* 模态框内容只允许垂直滚动 */
+      .modal-backdrop,
+      .modal-backdrop > div,
+      .modal-content,
+      .page-content {
+        overflow-x: hidden;
+        touch-action: pan-y;
+        overscroll-behavior-x: none;
+      }
+      /* 表单区域 */
+      #modal-tx [class*="col-span"],
+      #modal-tx .grid {
+        overflow-x: hidden;
+      }
     }
 
     /* ========== 自定义日期选择器 ========== */
