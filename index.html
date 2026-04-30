@@ -202,10 +202,18 @@
     .date-picker-btn .placeholder { color: #9ca3af; }
     .date-picker-btn svg { width: 16px; height: 16px; color: #9ca3af; flex-shrink: 0; }
     .date-picker-popup {
-      position: absolute; z-index: 70; top: calc(100% + 4px); left: 0;
+      position: fixed; z-index: 9999;
       background: #fff; border: 1px solid #e5e7eb; border-radius: 0.75rem;
       box-shadow: 0 8px 24px rgba(0,0,0,.12);
       padding: 0.75rem;
+      opacity: 0; transform: translateY(-8px);
+      transition: opacity .1s ease, transform .1s ease;
+      pointer-events: none;
+      user-select: none;
+    }
+    .date-picker-wrap.open .date-picker-popup {
+      opacity: 1; transform: translateY(0); pointer-events: auto;
+    }
       opacity: 0; transform: translateY(-8px);
       transition: opacity .1s ease, transform .1s ease;
       pointer-events: none;
@@ -509,9 +517,31 @@ class CustomDatePicker {
 
   _toggle() { this.wrap.classList.contains('open') ? this._close() : this._open(); }
   _open()  {
+    // 关闭其他已打开的日期选择器
     document.querySelectorAll('.date-picker-wrap.open').forEach(el => el.classList.remove('open'));
     this.wrap.classList.add('open');
     this._renderPopup();
+
+    // position: fixed 需要手动计算弹窗位置
+    requestAnimationFrame(() => {
+      const btnRect = this._btn.getBoundingClientRect();
+      const popup = this._popup;
+      const popupH  = popup.offsetHeight || 320;
+      const fitsBelow = btnRect.bottom + popupH < window.innerHeight - 8;
+      if (fitsBelow) {
+        popup.style.top    = (btnRect.bottom + 4) + 'px';
+        popup.style.left   = btnRect.left + 'px';
+        popup.style.right  = '';
+        // 宽度与按钮一致
+        popup.style.width  = Math.max(btnRect.width, 260) + 'px';
+      } else {
+        // 空间不足时翻转到按钮上方
+        popup.style.top   = (btnRect.top - popupH - 4) + 'px';
+        popup.style.left  = btnRect.left + 'px';
+        popup.style.right = '';
+        popup.style.width = Math.max(btnRect.width, 260) + 'px';
+      }
+    });
   }
   _close() { this.wrap.classList.remove('open'); }
 
@@ -715,10 +745,13 @@ document.addEventListener('DOMContentLoaded', initCustomDatePickers);
         <span class="text-gray-300">~</span>
         <input type="date" id="filter-date-to" onchange="loadTransactions()" placeholder="截止日期"
           class="border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400" />
-        <input type="text" id="filter-counterparty" placeholder="搜索交易对方..." oninput="debounceSearch()"
-          class="border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 w-28 md:w-36" />
+        <input type="text" id="filter-counterparty" placeholder="搜索 交易对方 / 关联账户..." oninput="debounceSearch()"
+          class="border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 w-36 md:w-44" />
+        <button onclick="loadTransactions()"
+          class="btn-touch px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium transition-colors">
+          搜索</button>
         <button onclick="clearFilters()"
-          class="text-gray-400 hover:text-gray-600 px-2 py-1.5">重置</button>
+          class="text-gray-400 hover:text-gray-600 px-2 py-1.5 text-xs">重置</button>
       </div>
     </div>
 
@@ -1706,7 +1739,10 @@ async function loadTransactions() {
   if (accountFilter)    query = query.eq('account_id', accountFilter);
   if (dateFrom)         query = query.gte('transaction_date', dateFrom);
   if (dateTo)           query = query.lte('transaction_date', dateTo);
-  if (counterparty)     query = query.ilike('counterparty', `%${counterparty}%`);
+  if (counterparty) {
+    // 同时搜索 交易对方 和 关联账户名称
+    query = query.or(`counterparty.ilike.%${counterparty}%,accounts.account_name.ilike.%${counterparty}%`);
+  }
   if (amountMin)        query = query.gte('amount', parseFloat(amountMin));
   if (amountMax)        query = query.lte('amount', parseFloat(amountMax));
 
