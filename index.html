@@ -2146,7 +2146,8 @@ async function checkPeriodLock() {
 // ================================================================
 document.addEventListener('DOMContentLoaded', async () => {
   await init();
-  await checkPeriodLock();
+  // 账期检查放后台，不阻塞页面
+  checkPeriodLock().catch(e => console.warn('账期检查失败:', e));
 });
 </script>
 
