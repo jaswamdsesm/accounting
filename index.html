@@ -617,27 +617,29 @@ let currentPage = 'dashboard';
 async function init() {
   sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
+  let loginSource = '';
   try {
     // 尝试飞书免登
     await feishuLogin();
+    loginSource = '飞书免登成功, 用户=' + (currentUser ? currentUser.name : 'null');
   } catch(e) {
-    // 将错误信息显示在页面上（飞书客户端无法 F12）
-    const errMsg = '飞书登录失败: ' + e.message;
-    console.warn(errMsg);
-    const loadingText = document.querySelector('#loading-screen p');
-    if (loadingText) {
-      loadingText.textContent = errMsg;
-      loadingText.style.whiteSpace = 'pre-wrap';
-      loadingText.style.fontSize = '12px';
-      loadingText.style.color = '#e53e3e';
-      loadingText.style.maxWidth = '90vw';
-      loadingText.style.textAlign = 'left';
-    }
-    // 等3秒让用户看到错误，然后回退到调试模式
-    await new Promise(r => setTimeout(r, 5000));
+    loginSource = '飞书登录失败: ' + e.message;
     // 开发调试：直接用测试账号
     await devLogin();
+    loginSource += ' | 回退到调试模式, 用户=' + (currentUser ? currentUser.name : 'null');
   }
+
+  // 在页面上显示登录状态（调试用，确认后删除）
+  const loadingText = document.querySelector('#loading-screen p');
+  if (loadingText) {
+    loadingText.textContent = loginSource;
+    loadingText.style.whiteSpace = 'pre-wrap';
+    loadingText.style.fontSize = '12px';
+    loadingText.style.color = '#2563eb';
+    loadingText.style.maxWidth = '90vw';
+    loadingText.style.textAlign = 'left';
+  }
+  await new Promise(r => setTimeout(r, 4000));
 
   await loadAccounts();
   initDashboardPeriod();
