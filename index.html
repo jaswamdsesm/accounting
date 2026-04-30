@@ -2671,27 +2671,30 @@ let cropState = null; // { img, canvas, ctx, crop, dragging, maxW, maxH }
 function openCropper(file) {
   const img = new Image();
   img.onload = () => {
-    // 先打开模态框，确保容器有尺寸
     openModal('modal-cropper');
 
-    // 等待 DOM 更新后再计算尺寸
     requestAnimationFrame(() => {
       const container = document.getElementById('crop-canvas').parentElement;
       const maxW = container.clientWidth - 8;
       const maxH = window.innerHeight * 0.55;
+      const dpr = window.devicePixelRatio || 1;
 
       let scale = Math.min(maxW / img.width, maxH / img.height, 1);
       const displayW = Math.round(img.width * scale);
       const displayH = Math.round(img.height * scale);
 
       const canvas = document.getElementById('crop-canvas');
-      canvas.width = displayW;
-      canvas.height = displayH;
+      // canvas 实际像素 = 显示尺寸 × DPR，保证高清
+      canvas.width  = displayW * dpr;
+      canvas.height = displayH * dpr;
+      // CSS 显示尺寸 = 显示尺寸
+      canvas.style.width  = displayW + 'px';
+      canvas.style.height = displayH + 'px';
 
       const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.drawImage(img, 0, 0, displayW, displayH);
 
-      // 默认裁切框：80% 居中
       const margin = 0.1;
       const crop = {
         x: Math.round(displayW * margin),
@@ -2702,7 +2705,7 @@ function openCropper(file) {
 
       cropState = {
         img, canvas, ctx, crop,
-        displayW, displayH, scale,
+        displayW, displayH, dpr, scale,
         fileName: file.name,
         dragging: null,
         dragStart: null,
@@ -2721,8 +2724,11 @@ function openCropper(file) {
 
 function drawCropOverlay() {
   if (!cropState) return;
-  const { ctx, canvas, crop, displayW, displayH } = cropState;
+  const { ctx, crop, displayW, displayH, dpr } = cropState;
   const { x, y, w, h } = crop;
+
+  // 用 setTransform 让后续绘制都在「CSS 像素坐标系」中进行
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
   // 重绘原图
   ctx.clearRect(0, 0, displayW, displayH);
@@ -2772,8 +2778,6 @@ function drawCropOverlay() {
 function getCanvasPos(e) {
   const canvas = cropState.canvas;
   const rect = canvas.getBoundingClientRect();
-  const scaleX = canvas.width / rect.width;
-  const scaleY = canvas.height / rect.height;
   let clientX, clientY;
   if (e.touches && e.touches.length > 0) {
     clientX = e.touches[0].clientX;
@@ -2785,9 +2789,10 @@ function getCanvasPos(e) {
     clientX = e.clientX;
     clientY = e.clientY;
   }
+  // canvas 的 CSS 尺寸 = 显示尺寸，直接用 CSS 像素坐标
   return {
-    x: (clientX - rect.left) * scaleX,
-    y: (clientY - rect.top) * scaleY
+    x: clientX - rect.left,
+    y: clientY - rect.top
   };
 }
 
@@ -2935,7 +2940,8 @@ function confirmCrop() {
   const { img, crop, scale, fileName } = cropState;
   const quality = parseFloat(document.getElementById('crop-quality').value);
 
-  // 从原图坐标换算
+  // crop 坐标在「显示坐标系」，需换算回原图坐标
+  // 显示尺寸 = img.width * scale，所以：原图坐标 = 显示坐标 / scale
   const srcX = crop.x / scale;
   const srcY = crop.y / scale;
   const srcW = crop.w / scale;
