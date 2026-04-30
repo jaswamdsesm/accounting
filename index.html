@@ -630,7 +630,7 @@ async function init() {
   }
 
   // 在页面上显示登录状态（调试用，确认后删除）
-  const loadingText = document.querySelector('#loading-screen p');
+  const loadingText = document.querySelector('#loading-mask p');
   if (loadingText) {
     loadingText.textContent = loginSource;
     loadingText.style.whiteSpace = 'pre-wrap';
