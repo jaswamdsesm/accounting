@@ -168,44 +168,44 @@
 <aside id="sidebar"
   class="fixed top-0 left-0 h-full w-[200px] bg-white border-r border-gray-200 flex-col z-30 hidden">
   <div class="px-5 py-5 border-b border-gray-100">
-    <h1 class="text-base font-bold text-gray-800">📒 股东记账</h1>
+    <h1 class="text-base font-bold text-gray-800 flex items-center gap-2"><svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m-6 4h6m-6 4h4M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z"/></svg>股东记账</h1>
     <p id="sidebar-user" class="text-xs text-gray-400 mt-1 truncate">加载中...</p>
   </div>
   <nav class="flex-1 overflow-y-auto py-3">
     <button onclick="switchPage('dashboard')" data-page="dashboard"
       class="nav-btn w-full text-left px-5 py-3 text-sm flex items-center gap-3 hover:bg-blue-50 transition-colors">
-      <span class="text-lg">📊</span><span>仪表盘</span>
+      <span class="text-lg flex items-center"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13h4v8H3zM10 21h4v-8h-4zM17 21h4v-12h-4zM3 9l9-7 9 7v2H3z"/></svg></span><span>仪表盘</span>
     </button>
     <button onclick="switchPage('transactions')" data-page="transactions"
       class="nav-btn w-full text-left px-5 py-3 text-sm flex items-center gap-3 hover:bg-blue-50 transition-colors">
-      <span class="text-lg">📋</span><span>收支流水</span>
+      <span class="text-lg flex items-center"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg></span><span>收支流水</span>
     </button>
     <button onclick="switchPage('accounts')" data-page="accounts"
       class="nav-btn w-full text-left px-5 py-3 text-sm flex items-center gap-3 hover:bg-blue-50 transition-colors">
-      <span class="text-lg">💰</span><span>账户余额</span>
+      <span class="text-lg flex items-center"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg></span><span>账户余额</span>
     </button>
     <button onclick="switchPage('audit')" data-page="audit"
       class="nav-btn w-full text-left px-5 py-3 text-sm flex items-center gap-3 hover:bg-blue-50 transition-colors">
-      <span class="text-lg">🔍</span><span>审计日志</span>
+      <span class="text-lg flex items-center"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg></span><span>审计日志</span>
     </button>
     <button onclick="switchPage('approvals')" data-page="approvals"
       class="nav-btn w-full text-left px-5 py-3 text-sm flex items-center gap-3 hover:bg-blue-50 transition-colors">
-      <span class="text-lg">✅</span><span>审批中心</span>
+      <span class="text-lg flex items-center"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></span><span>审批中心</span>
     </button>
   </nav>
   <!-- 夜间模式 / 个人设置入口 -->
   <div class="border-t border-gray-100 px-4 py-4 space-y-1">
     <button onclick="toggleDarkMode()" id="btn-dark-mode"
       class="nav-btn w-full text-left text-sm text-gray-600 flex items-center gap-2.5 py-2 px-2 rounded-lg hover:bg-gray-100 transition-colors">
-      <span id="dark-mode-icon" class="text-base">🌙</span><span id="dark-mode-text">夜间模式</span>
+      <span id="dark-mode-icon" class="text-base flex items-center"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9 9 0 008.354-5.646z"/></svg></span><span id="dark-mode-text">夜间模式</span>
     </button>
     <button onclick="switchPage('profile')" data-page="profile"
       class="nav-btn w-full text-left text-sm text-gray-600 flex items-center gap-2.5 py-2 px-2 rounded-lg hover:bg-gray-100 transition-colors">
-      <span class="text-base">👤</span><span>个人设置</span>
+      <span class="text-base flex items-center"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg></span><span>个人设置</span>
     </button>
     <button onclick="switchPage('settings')" data-page="settings"
       class="nav-btn w-full text-left text-sm text-gray-600 flex items-center gap-2.5 py-2 px-2 rounded-lg hover:bg-gray-100 transition-colors">
-      <span class="text-base">⚙️</span><span>角色配置</span>
+      <span class="text-base flex items-center"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.137-.33.31-.517.5-.562l1.261-.956a.96.96 0 011.287.737l.94 2.062a1.05 1.05 0 00.253.852l1.875.702a1.05 1.05 0 01.602 1.2l-1.387 1.388a1.05 1.05 0 00-.273.567l-.428 1.538a1.05 1.05 0 01-1.04.73l-1.875-.703a1.05 1.05 0 00-.852.253l-.956 1.26a.96.96 0 01-.737 1.287l-2.062-.94a1.05 1.05 0 00-.852-.253l-1.388 1.387a1.05 1.05 0 01-1.2-.602l-.702-1.875a1.05 1.05 0 00-.567-.273l-1.538.428a1.05 1.05 0 01-.73-1.04l.94-2.062a1.05 1.05 0 00-.253-.852l-1.26-.956a.96.96 0 010-1.287l.956-1.26a1.05 1.05 0 00.253-.852l1.387-1.388a1.05 1.05 0 011.2-.602l.702 1.875a1.05 1.05 0 00.567.273l1.538-.428a1.05 1.05 0 011.04-.73l1.875.703a1.05 1.05 0 00.852.253l.956-1.26A.96.96 0 0113.075.286l2.062.94a1.05 1.05 0 00.852.253l1.388-1.387a1.05 1.05 0 011.2.602l.702 1.875a1.05 1.05 0 00.567.273l1.538-.428a1.05 1.05 0 01.73 1.04l-.94 2.062a1.05 1.05 0 00.253.852l1.26.956a.96.96 0 010 1.287l-.956 1.26a1.05 1.05 0 00.253.852l1.387 1.388a1.05 1.05 0 01-.602 1.2l-1.875.702A1.05 1.05 0 007.64 3.65l.428-1.538A1.05 1.05 0 018.53 1.37l1.875.703a1.05 1.05 0 00.852-.253zM12 8v4m0 4h.01"/></svg></span><span>角色配置</span>
     </button>
   </div>
 </aside>
@@ -464,27 +464,27 @@
   class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-30 safe-bottom flex items-center justify-around">
   <button onclick="switchPage('dashboard')" data-page="dashboard"
     class="btn-nav flex flex-col items-center py-2 px-4 text-gray-400 min-h-[48px] min-w-[48px]">
-    <span class="text-xl">📊</span>
+    <span class="text-xl flex items-center justify-center"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13h4v8H3zM10 21h4v-8h-4zM17 21h4v-12h-4zM3 9l9-7 9 7v2H3z"/></svg></span>
     <span class="text-[10px] mt-0.5">仪表盘</span>
   </button>
   <button onclick="switchPage('transactions')" data-page="transactions"
     class="btn-nav flex flex-col items-center py-2 px-4 text-gray-400 min-h-[48px] min-w-[48px]">
-    <span class="text-xl">📋</span>
+    <span class="text-xl flex items-center justify-center"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg></span>
     <span class="text-[10px] mt-0.5">流水</span>
   </button>
   <button onclick="switchPage('accounts')" data-page="accounts"
     class="btn-nav flex flex-col items-center py-2 px-4 text-gray-400 min-h-[48px] min-w-[48px]">
-    <span class="text-xl">💰</span>
+    <span class="text-xl flex items-center justify-center"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg></span>
     <span class="text-[10px] mt-0.5">余额</span>
   </button>
   <button onclick="switchPage('approvals')" data-page="approvals"
     class="btn-nav flex flex-col items-center py-2 px-4 text-gray-400 min-h-[48px] min-w-[48px]">
-    <span class="text-xl">✅</span>
+    <span class="text-xl flex items-center justify-center"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></span>
     <span class="text-[10px] mt-0.5">审批</span>
   </button>
   <button onclick="openMobileMenu()" id="btn-more-mobile"
     class="btn-nav flex flex-col items-center py-2 px-4 text-gray-400 min-h-[48px] min-w-[48px]">
-    <span class="text-xl">☰</span>
+    <span class="text-xl flex items-center justify-center"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg></span>
     <span class="text-[10px] mt-0.5">更多</span>
   </button>
 </nav>
@@ -494,16 +494,16 @@
   <div class="absolute inset-0 bg-black/30" onclick="closeMobileMenu()"></div>
   <div class="absolute bottom-[56px] right-3 bg-white rounded-xl shadow-xl border border-gray-100 py-2 w-44">
     <button onclick="toggleDarkMode(); closeMobileMenu()" class="w-full text-left px-4 py-3.5 text-sm text-gray-700 font-medium hover:bg-gray-50 flex items-center gap-2.5 transition-colors">
-      <span class="text-base">🌙</span> 夜间模式
+      <span class="text-base"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9 9 0 008.354-5.646z"/></svg></span> 夜间模式
     </button>
     <button onclick="closeMobileMenu(); switchPage('audit')" class="w-full text-left px-4 py-3.5 text-sm text-gray-700 font-medium hover:bg-gray-50 flex items-center gap-2.5 transition-colors">
-      <span class="text-base">🔍</span> 审计日志
+      <span class="text-base"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg></span> 审计日志
     </button>
     <button onclick="closeMobileMenu(); switchPage('profile')" class="w-full text-left px-4 py-3.5 text-sm text-gray-700 font-medium hover:bg-gray-50 flex items-center gap-2.5 transition-colors">
-      <span class="text-base">👤</span> 个人设置
+      <span class="text-base"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg></span> 个人设置
     </button>
     <button onclick="closeMobileMenu(); switchPage('settings')" class="w-full text-left px-4 py-3.5 text-sm text-gray-700 font-medium hover:bg-gray-50 flex items-center gap-2.5 transition-colors">
-      <span class="text-base">⚙️</span> 角色配置
+      <span class="text-base"><svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.137-.33.31-.517.5-.562l1.261-.956a.96.96 0 011.287.737l.94 2.062a1.05 1.05 0 00.253.852l1.875.702a1.05 1.05 0 01.602 1.2l-1.387 1.388a1.05 1.05 0 00-.273.567l-.428 1.538a1.05 1.05 0 01-1.04.73l-1.875-.703a1.05 1.05 0 00-.852.253l-.956 1.26a.96.96 0 01-.737 1.287l-2.062-.94a1.05 1.05 0 00-.852-.253l-1.388 1.387a1.05 1.05 0 01-1.2-.602l-.702-1.875a1.05 1.05 0 00-.567-.273l-1.538.428a1.05 1.05 0 01-.73-1.04l.94-2.062a1.05 1.05 0 00-.253-.852l-1.26-.956a.96.96 0 010-1.287l.956-1.26a1.05 1.05 0 00.253-.852l1.387-1.388a1.05 1.05 0 011.2-.602l.702 1.875a1.05 1.05 0 00.567.273l1.538-.428a1.05 1.05 0 011.04-.73l1.875.703a1.05 1.05 0 00.852.253l.956-1.26A.96.96 0 0113.075.286l2.062.94a1.05 1.05 0 00.852.253l1.388-1.387a1.05 1.05 0 011.2.602l.702 1.875a1.05 1.05 0 00.567.273l1.538-.428a1.05 1.05 0 01.73 1.04l-.94 2.062a1.05 1.05 0 00.253.852l1.26.956a.96.96 0 010 1.287l-.956 1.26a1.05 1.05 0 00.253.852l1.387 1.388a1.05 1.05 0 01-.602 1.2l-1.875.702A1.05 1.05 0 007.64 3.65l.428-1.538A1.05 1.05 0 018.53 1.37l1.875.703a1.05 1.05 0 00.852-.253zM12 8v4m0 4h.01"/></svg></span> 角色配置
     </button>
   </div>
 </div>
