@@ -609,6 +609,7 @@ const TX_PAGE_SIZE = 30;
 let txSortCol = 'transaction_date';
 let txSortAsc = false;
 let currentPage = 'dashboard';
+let loginSource = '';  // 调试：登录状态信息
 
 // ================================================================
 // 初始化入口
@@ -616,7 +617,7 @@ let currentPage = 'dashboard';
 async function init() {
   sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
-  let loginSource = '';
+  loginSource = '';
   try {
     // 尝试飞书免登
     await feishuLogin();
