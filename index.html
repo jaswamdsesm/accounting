@@ -2030,13 +2030,12 @@ async function saveProfileName() {
   if (newName === currentUser.name) { showToast('名称未变化', 'info'); return; }
 
   try {
-    // 更新用户表
-    const { error } = await sb.from('app_users').update({ name: newName }).eq('id', currentUser.id);
+    // 通过 RPC 更新（SECURITY DEFINER 绕过 RLS，同时同步 transactions 的 creator_name）
+    const { error } = await sb.rpc('update_user_name', {
+      p_user_id: currentUser.id,
+      p_new_name: newName
+    });
     if (error) throw error;
-
-    // 同步更新该用户创建的所有历史记录的 creator_name
-    await sb.from('transactions').update({ creator_name: newName }).eq('creator_id', currentUser.id);
-    await sb.from('audit_logs').update({ operator_name: newName }).eq('operator_id', currentUser.id);
 
     // 更新本地状态
     currentUser.name = newName;
