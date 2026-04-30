@@ -708,30 +708,22 @@ async function feishuLogin() {
       return;
     }
 
-    // 优先尝试新版 API: requestAccess
-    if (ttObj.requestAccess) {
-      ttObj.requestAccess({
-        appID: FEISHU_APP_ID,
-        scopeList: ['user.info:base'],
+    loginSource += ', requestAuthCode=' + typeof ttObj.requestAuthCode + ', requestAccess=' + typeof ttObj.requestAccess;
+
+    // 直接使用 requestAuthCode（兼容性最好）
+    if (ttObj.requestAuthCode) {
+      ttObj.requestAuthCode({
+        appId: FEISHU_APP_ID,
         success: async (res) => {
-          loginSource += ', 使用 requestAccess';
+          loginSource += ', code=' + (res.code ? res.code.substring(0, 8) + '...' : '空');
           await handleFeishuCode(res.code, resolve, reject);
         },
         fail: (err) => {
-          // errno 103: 客户端版本过低，降级到 requestAuthCode
-          if (err && err.errno === 103) {
-            loginSource += ', requestAccess errno103 降级 requestAuthCode';
-            callRequestAuthCode(ttObj, resolve, reject);
-          } else {
-            reject(new Error('requestAccess 失败: ' + JSON.stringify(err)));
-          }
+          reject(new Error('requestAuthCode 失败: ' + JSON.stringify(err)));
         }
       });
-    } else if (ttObj.requestAuthCode) {
-      loginSource += ', 使用 requestAuthCode';
-      callRequestAuthCode(ttObj, resolve, reject);
     } else {
-      reject(new Error('tt.requestAccess 和 tt.requestAuthCode 都不存在'));
+      reject(new Error('tt.requestAuthCode 不存在'));
     }
   });
 }
