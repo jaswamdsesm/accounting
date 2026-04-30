@@ -649,8 +649,8 @@ async function feishuLogin() {
       appId: FEISHU_APP_ID,
       success: async (res) => {
         const code = res.code;
-        // 调用后端换取用户信息（需要后端接口，此处调用 Supabase Edge Function）
-        const { data, error } = await sb.functions.invoke('feishu-auth', { body: { code } });
+        // 调用数据库 RPC 函数换取用户信息
+        const { data, error } = await sb.rpc('feishu_login', { p_code: code });
         if (error) { reject(error); return; }
 
         currentUser = data.user;
