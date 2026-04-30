@@ -621,7 +621,20 @@ async function init() {
     // 尝试飞书免登
     await feishuLogin();
   } catch(e) {
-    console.warn('飞书登录失败，尝试调试模式:', e.message);
+    // 将错误信息显示在页面上（飞书客户端无法 F12）
+    const errMsg = '飞书登录失败: ' + e.message;
+    console.warn(errMsg);
+    const loadingText = document.querySelector('#loading-screen p');
+    if (loadingText) {
+      loadingText.textContent = errMsg;
+      loadingText.style.whiteSpace = 'pre-wrap';
+      loadingText.style.fontSize = '12px';
+      loadingText.style.color = '#e53e3e';
+      loadingText.style.maxWidth = '90vw';
+      loadingText.style.textAlign = 'left';
+    }
+    // 等3秒让用户看到错误，然后回退到调试模式
+    await new Promise(r => setTimeout(r, 5000));
     // 开发调试：直接用测试账号
     await devLogin();
   }
