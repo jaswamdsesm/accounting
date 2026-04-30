@@ -9,6 +9,15 @@
   <!-- Supabase JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- 飞书 JSSDK（自建网页应用免登） -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <script>
+    // 强制刷新缓存：如果 URL 没有 v 参数，自动加上当前时间戳重载
+    if (!location.search.includes('v=')) {
+      location.replace(location.pathname + '?v=' + Date.now());
+    }
+  </script>
   <script src="https://lf-scm-cn.feishucdn.com/lark/op/h5-js-sdk-1.5.44.js"></script>
 
   <script>
