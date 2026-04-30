@@ -428,11 +428,20 @@ class CustomDatePicker {
 
   _updateBtn() {
     const d = this.value ? new Date(this.value + 'T00:00:00') : null;
-    const txt = d ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` : '';
+    let display;
+    if (d) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth()+1).padStart(2,'0');
+      const day = String(d.getDate()).padStart(2,'0');
+      display = y + '-' + m + '-' + day;
+    } else {
+      display = '';
+    }
     const placeholder = this.el.dataset.placeholder || '选择日期';
-    this._btn.innerHTML = txt
-      ? escHtml(txt) + '<svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zM4 8h12v8H4V8z"/></svg>'
-      : `<span class="placeholder">${placeholder}</span><svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zM4 8h12v8H4V8z"/></svg>`;
+    const svg = '<svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zM4 8h12v8H4V8z"/></svg>';
+    this._btn.innerHTML = display
+      ? escHtml(display) + svg
+      : '<span class="date-picker-placeholder">' + escHtml(placeholder) + '</span>' + svg;
   }
 
   _renderPopup() {
@@ -444,9 +453,9 @@ class CustomDatePicker {
     const prevDays = new Date(y, m, 0).getDate();
 
     let html = `<div class="dp-header">
-      <button type="button" data-act="prev-month">&lt;</button>
+      <button type="button" data-act="prev-month"><</button>
       <span>${y}年 ${m+1}月</span>
-      <button type="button" data-act="next-month">&gt;</button>
+      <button type="button" data-act="next-month">></button>
     </div>
     <div class="dp-weekdays">${weekdays.map(w => `<div>${w}</div>`).join('')}</div>
     <div class="dp-days">`;
@@ -529,7 +538,7 @@ class CustomDatePicker {
 function initCustomDatePickers() {
   document.querySelectorAll('input[type="date"]:not([data-custom-date])').forEach(el => {
     el.dataset.customDate = '1';
-    new CustomDatePicker(el);
+    el._customDatePicker = new CustomDatePicker(el);
   });
 }
 document.addEventListener('DOMContentLoaded', initCustomDatePickers);
@@ -1775,8 +1784,11 @@ function clearFilters() {
   document.getElementById('filter-account').value = '';
   document.getElementById('filter-amount-min').value = '';
   document.getElementById('filter-amount-max').value = '';
-  document.getElementById('filter-date-from').value = '';
-  document.getElementById('filter-date-to').value = '';
+  // 通过 CustomDatePicker 实例清空日期选择器
+  const dateFrom = document.getElementById('filter-date-from');
+  const dateTo   = document.getElementById('filter-date-to');
+  if (dateFrom._customDatePicker) dateFrom._customDatePicker.setValue('');
+  if (dateTo._customDatePicker)   dateTo._customDatePicker.setValue('');
   document.getElementById('filter-counterparty').value = '';
   accountFilterId = null;
   accountFilterName = null;
@@ -1943,8 +1955,14 @@ function openAddModal(prefill = null) {
   const templates = document.getElementById('desc-templates');
   if (templates) templates.innerHTML = '';
 
-  // 默认今天
-  document.getElementById('tx-date').value = new Date().toISOString().slice(0, 10);
+  // 默认今天 — 通过 CustomDatePicker 实例设置
+  const txDate = document.getElementById('tx-date');
+  const today = new Date().toISOString().slice(0, 10);
+  if (txDate._customDatePicker) {
+    txDate._customDatePicker.setValue(today);
+  } else {
+    txDate.value = today;
+  }
 
   // 预填账户选项
   const sel = document.getElementById('tx-account');
