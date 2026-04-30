@@ -167,6 +167,13 @@
     html.dark .custom-sel-opt:hover { background: #334155; }
     html.dark .custom-sel-opt.sel { background: #1e3a5f; color: #60a5fa; }
     html.dark .custom-sel-opt-group { color: #64748b; }
+
+    /* 禁止移动端左右滚动 */
+    body { overflow-x: hidden; }
+    @media (max-width: 768px) {
+      body { overflow-x: hidden; }
+      .modal-content, .page-content { overflow-x: hidden; }
+    }
   </style>
   <!-- 夜间模式加载时防闪烁 -->
   <script>
@@ -2480,11 +2487,19 @@ async function sendFeishuNotify(title, content) {
 // 审批中心
 // ================================================================
 async function loadApprovals() {
-  const { data: approvals } = await sb.from('approvals')
-    .select('*, app_users!initiated_by(name)')
-    .order('initiated_at', { ascending: false });
-
   const container = document.getElementById('approvals-list');
+  container.innerHTML = '<div class="text-center py-8 text-gray-400 text-sm">加载中…</div>';
+
+  const { data: approvals, error } = await sb.from('approvals')
+    .select('id, title, status, initiated_at, reason, votes, initiated_by, app_users!initiated_by(name)')
+    .order('initiated_at', { ascending: false })
+    .limit(20);
+
+  if (error) {
+    container.innerHTML = '<p class="text-sm text-red-500">加载失败：' + escHtml(error.message) + '</p>';
+    return;
+  }
+
   container.innerHTML = (approvals || []).map(ap => {
     const statusMap = { pending:'<span class="inline-flex items-center gap-1"><svg class="w-3.5 h-3.5 text-yellow-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> 待审批</span>', approved:'<span class="inline-flex items-center gap-1"><svg class="w-3.5 h-3.5 text-green-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> 已通过</span>', rejected:'<span class="inline-flex items-center gap-1"><svg class="w-3.5 h-3.5 text-red-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg> 已拒绝</span>' };
     const votes = ap.votes || [];
