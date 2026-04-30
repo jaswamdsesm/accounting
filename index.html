@@ -149,8 +149,12 @@
       <span class="text-lg">✅</span><span>审批中心</span>
     </button>
   </nav>
-  <!-- 角色配置入口 -->
-  <div class="border-t border-gray-100 px-5 py-3">
+  <!-- 角色配置 / 个人设置入口 -->
+  <div class="border-t border-gray-100 px-5 py-3 space-y-2">
+    <button onclick="switchPage('profile')" data-page="profile"
+      class="nav-btn w-full text-left text-xs text-gray-400 flex items-center gap-2 hover:text-gray-600">
+      <span>👤</span><span>个人设置</span>
+    </button>
     <button onclick="switchPage('settings')" data-page="settings"
       class="nav-btn w-full text-left text-xs text-gray-400 flex items-center gap-2 hover:text-gray-600">
       <span>⚙️</span><span>角色配置</span>
@@ -320,6 +324,33 @@
   <div id="page-approvals" class="page hidden p-4 md:p-6">
     <h2 class="text-lg font-bold text-gray-800 mb-4">审批中心</h2>
     <div id="approvals-list" class="space-y-3"></div>
+  </div>
+
+  <!-- ========== 个人设置页面 ========== -->
+  <div id="page-profile" class="page hidden p-4 md:p-6">
+    <h2 class="text-lg font-bold text-gray-800 mb-4">个人设置</h2>
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 max-w-md">
+      <div class="mb-4">
+        <label class="block text-xs font-medium text-gray-500 mb-1">飞书 ID</label>
+        <p id="profile-feishu-uid" class="text-sm text-gray-400 font-mono">--</p>
+      </div>
+      <div class="mb-4">
+        <label class="block text-xs font-medium text-gray-500 mb-1">当前角色</label>
+        <p id="profile-role" class="text-sm text-gray-700">--</p>
+      </div>
+      <div class="mb-4">
+        <label class="block text-xs font-medium text-gray-500 mb-1">显示名称</label>
+        <div class="flex gap-2">
+          <input type="text" id="profile-name" placeholder="输入你的显示名称"
+            class="flex-1 border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+          <button onclick="saveProfileName()"
+            class="btn-touch px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors">
+            保存
+          </button>
+        </div>
+        <p class="text-[10px] text-gray-300 mt-1">修改后，系统中所有由你创建的记录也会同步更新显示名称</p>
+      </div>
+    </div>
   </div>
 
   <!-- ========== 角色配置页面 ========== -->
@@ -628,27 +659,11 @@ async function init() {
 
   loginSource = '';
   try {
-    // 尝试飞书免登
     await feishuLogin();
-    loginSource = '飞书免登成功, 用户=' + (currentUser ? currentUser.name : 'null');
   } catch(e) {
-    loginSource = '飞书登录失败: ' + e.message;
-    // 开发调试：直接用测试账号
+    console.warn('飞书免登失败，回退调试模式:', e.message);
     await devLogin();
-    loginSource += ' | 回退到调试模式, 用户=' + (currentUser ? currentUser.name : 'null');
   }
-
-  // 在页面上显示登录状态（调试用，确认后删除）
-  const loadingText = document.querySelector('#loading-mask p');
-  if (loadingText) {
-    loadingText.textContent = loginSource;
-    loadingText.style.whiteSpace = 'pre-wrap';
-    loadingText.style.fontSize = '12px';
-    loadingText.style.color = '#2563eb';
-    loadingText.style.maxWidth = '90vw';
-    loadingText.style.textAlign = 'left';
-  }
-  await new Promise(r => setTimeout(r, 4000));
 
   await loadAccounts();
   initDashboardPeriod();
@@ -815,6 +830,7 @@ function switchPage(page) {
   if (page === 'audit')        loadAuditLogs();
   if (page === 'approvals')    loadApprovals();
   if (page === 'settings')     loadSettings();
+  if (page === 'profile')      loadProfile();
 }
 
 // ================================================================
@@ -1425,6 +1441,40 @@ async function castVote(vote) {
     loadApprovals();
   } catch(err) {
     showToast('投票失败：' + err.message, 'error');
+  }
+}
+
+// ================================================================
+// 个人设置
+// ================================================================
+function loadProfile() {
+  if (!currentUser) return;
+  document.getElementById('profile-feishu-uid').textContent = currentUser.feishu_uid || '--';
+  document.getElementById('profile-role').textContent = roleLabel(currentUser.role);
+  document.getElementById('profile-name').value = currentUser.name || '';
+}
+
+async function saveProfileName() {
+  const newName = document.getElementById('profile-name').value.trim();
+  if (!newName) { showToast('名称不能为空', 'warning'); return; }
+  if (newName === currentUser.name) { showToast('名称未变化', 'info'); return; }
+
+  try {
+    // 更新用户表
+    const { error } = await sb.from('app_users').update({ name: newName }).eq('id', currentUser.id);
+    if (error) throw error;
+
+    // 同步更新该用户创建的所有历史记录的 creator_name
+    await sb.from('transactions').update({ creator_name: newName }).eq('creator_id', currentUser.id);
+    await sb.from('audit_logs').update({ operator_name: newName }).eq('operator_id', currentUser.id);
+
+    // 更新本地状态
+    currentUser.name = newName;
+    document.getElementById('sidebar-user').textContent = newName + ' · ' + roleLabel(currentUser.role);
+
+    showToast('名称已更新', 'success');
+  } catch(err) {
+    showToast('更新失败：' + err.message, 'error');
   }
 }
 
