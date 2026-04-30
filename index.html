@@ -18,6 +18,7 @@
 
   <script>
     tailwind.config = {
+      darkMode: 'class',
       theme: {
         extend: {
           colors: {
@@ -89,7 +90,54 @@
 
     /* ===== 模态框 ===== */
     .modal-backdrop { backdrop-filter: blur(2px); }
+
+    /* ===== 夜间模式 ===== */
+    html.dark, body.dark { background-color: #0f172a; color: #e2e8f0; }
+    html.dark input, html.dark select, html.dark textarea,
+    body.dark input, body.dark select, body.dark textarea {
+      background-color: #1e293b; border-color: #334155; color: #e2e8f0;
+    }
+    html.dark input[type="date"]::-webkit-calendar-picker-indicator,
+    body.dark input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); }
+    html.dark .bg-white, body.dark .bg-white { background-color: #1e293b !important; }
+    html.dark .bg-gray-50, body.dark .bg-gray-50 { background-color: #0f172a !important; }
+    html.dark .bg-gray-100, body.dark .bg-gray-100 { background-color: #1e293b !important; }
+    html.dark .border-gray-100, body.dark .border-gray-100 { border-color: #334155 !important; }
+    html.dark .border-gray-200, body.dark .border-gray-200 { border-color: #334155 !important; }
+    html.dark .text-gray-300, body.dark .text-gray-300 { color: #64748b !important; }
+    html.dark .text-gray-400, body.dark .text-gray-400 { color: #94a3b8 !important; }
+    html.dark .text-gray-500, body.dark .text-gray-500 { color: #94a3b8 !important; }
+    html.dark .text-gray-600, body.dark .text-gray-600 { color: #cbd5e1 !important; }
+    html.dark .text-gray-700, body.dark .text-gray-700 { color: #e2e8f0 !important; }
+    html.dark .text-gray-800, body.dark .text-gray-800 { color: #f1f5f9 !important; }
+    html.dark .text-gray-900, body.dark .text-gray-900 { color: #f1f5f9 !important; }
+    html.dark .hover\:bg-blue-50:hover, body.dark .hover\:bg-blue-50:hover { background-color: #1e3a5f !important; }
+    html.dark .hover\:bg-gray-50:hover, body.dark .hover\:bg-gray-50:hover { background-color: #1e293b !important; }
+    html.dark .hover\:bg-gray-200:hover, body.dark .hover\:bg-gray-200:hover { background-color: #334155 !important; }
+    html.dark .zebra-row:nth-child(even), body.dark .zebra-row:nth-child(even) { background-color: #1a2744 !important; }
+    html.dark .shadow-sm, body.dark .shadow-sm { box-shadow: 0 1px 3px rgba(0,0,0,.4) !important; }
+    html.dark .tx-card, body.dark .tx-card { box-shadow: 0 1px 4px rgba(0,0,0,.4) !important; }
+    /* 夜间模式特殊行 */
+    html.dark .row-reversal, body.dark .row-reversal { background-color: #451a1a !important; color: #fca5a5; }
+    html.dark .row-correction, body.dark .row-correction { background-color: #172554 !important; color: #93c5fd; }
+    html.dark .row-locked, body.dark .row-locked { background-color: #1e293b !important; color: #64748b; }
+    /* loading mask */
+    html.dark #loading-mask, body.dark #loading-mask { background-color: #0f172a !important; }
+    html.dark #loading-mask p, body.dark #loading-mask p { color: #94a3b8 !important; }
+    /* 夜间模式 hover:border */
+    html.dark .hover\:border-blue-200:hover, body.dark .hover\:border-blue-200:hover { border-color: #3b82f6 !important; }
+    /* 夜间模式 toast */
+    html.dark #toast-inner, body.dark #toast-inner { background-color: #1e293b !important; color: #e2e8f0 !important; }
+    /* 夜间模式顶部筛选 sticky 背景 */
+    html.dark .sticky, body.dark .sticky { background-color: #0f172a !important; }
   </style>
+  <!-- 夜间模式加载时防闪烁 -->
+  <script>
+    if (localStorage.getItem('shareholder_dark_mode') === '1'
+      || (!localStorage.getItem('shareholder_dark_mode') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      document.documentElement.classList.add('dark');
+    }
+  </script>
 </head>
 
 <body class="bg-gray-50 text-gray-900 min-h-screen">
@@ -145,8 +193,12 @@
       <span class="text-lg">✅</span><span>审批中心</span>
     </button>
   </nav>
-  <!-- 角色配置 / 个人设置入口 -->
+  <!-- 夜间模式 / 个人设置入口 -->
   <div class="border-t border-gray-100 px-5 py-3 space-y-2">
+    <button onclick="toggleDarkMode()" id="btn-dark-mode"
+      class="nav-btn w-full text-left text-xs text-gray-400 flex items-center gap-2 hover:text-gray-600">
+      <span id="dark-mode-icon">🌙</span><span id="dark-mode-text">夜间模式</span>
+    </button>
     <button onclick="switchPage('profile')" data-page="profile"
       class="nav-btn w-full text-left text-xs text-gray-400 flex items-center gap-2 hover:text-gray-600">
       <span>👤</span><span>个人设置</span>
@@ -441,6 +493,9 @@
 <div id="mobile-menu" class="fixed inset-0 hidden z-40">
   <div class="absolute inset-0 bg-black/30" onclick="closeMobileMenu()"></div>
   <div class="absolute bottom-[56px] right-3 bg-white rounded-xl shadow-xl border border-gray-100 py-2 w-40">
+    <button onclick="toggleDarkMode(); closeMobileMenu()" class="w-full text-left px-4 py-3 text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-2">
+      <span>🌙</span> 夜间模式
+    </button>
     <button onclick="closeMobileMenu(); switchPage('audit')" class="w-full text-left px-4 py-3 text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-2">
       <span>🔍</span> 审计日志
     </button>
@@ -814,6 +869,38 @@ let auditSearchTimer = null;
 let auditOffset = 0;
 const AUDIT_PAGE_SIZE = 50;
 let reversalAmount = 0; // 冲销确认金额
+let isDarkMode = false;  // 夜间模式状态
+
+// ================================================================
+// 夜间模式
+// ================================================================
+function toggleDarkMode() {
+  isDarkMode = !isDarkMode;
+  document.body.classList.toggle('dark', isDarkMode);
+  document.documentElement.classList.toggle('dark', isDarkMode);
+  localStorage.setItem('shareholder_dark_mode', isDarkMode ? '1' : '0');
+  updateDarkModeUI();
+}
+
+function updateDarkModeUI() {
+  const icon = document.getElementById('dark-mode-icon');
+  const text = document.getElementById('dark-mode-text');
+  if (icon && text) {
+    icon.textContent = isDarkMode ? '☀️' : '🌙';
+    text.textContent = isDarkMode ? '日间模式' : '夜间模式';
+  }
+}
+
+function initDarkMode() {
+  const saved = localStorage.getItem('shareholder_dark_mode');
+  // 优先 localStorage，其次跟随系统偏好
+  isDarkMode = saved === '1' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  document.body.classList.toggle('dark', isDarkMode);
+  updateDarkModeUI();
+}
+
+// 页面加载时立即初始化（html 上的 dark 类已由 head 中的防闪烁脚本处理）
+initDarkMode();
 
 // ================================================================
 // 初始化入口
@@ -1504,7 +1591,7 @@ async function loadAccounts() {
 async function loadAccountsPage() {
   const container = document.getElementById('accounts-list');
   container.innerHTML = allAccounts.map(a => `
-    <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-100 cursor-pointer hover:shadow-md transition-shadow"
+    <div class="account-card group bg-white rounded-xl shadow-sm p-5 border border-gray-100 cursor-pointer hover:shadow-md hover:border-blue-200 transition-all"
       onclick="viewAccountTransactions('${a.id}', '${escHtml(a.account_name)}')">
       <div class="flex justify-between items-start">
         <h3 class="font-semibold text-gray-700">${escHtml(a.account_name)}</h3>
@@ -1513,7 +1600,10 @@ async function loadAccountsPage() {
       <p class="text-3xl font-bold mt-2 ${parseFloat(a.current_balance) < 0 ? 'text-red-500' : 'text-gray-800'}">
         ${fmtMoney(a.current_balance)}
       </p>
-      <p class="text-[10px] text-blue-400 mt-2">点击查看该账户流水 →</p>
+      <div class="flex items-center justify-end gap-1 mt-3 text-xs text-blue-500 font-medium opacity-70 group-hover:opacity-100">
+        <span>查看流水明细</span>
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+      </div>
     </div>
   `).join('');
 }
