@@ -928,7 +928,7 @@ document.addEventListener('DOMContentLoaded', initCustomDatePickers);
         <span class="flex items-center"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/></svg></span> 导出 CSV
       </button>
     </div>
-    <div class="flex flex-wrap gap-2 text-xs mb-3">
+    <div class="flex flex-wrap gap-2 text-xs mb-3 items-center">
       <select id="audit-filter-type" onchange="loadAuditLogs()"
         class="border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
         <option value="">全部类型</option>
@@ -940,18 +940,20 @@ document.addEventListener('DOMContentLoaded', initCustomDatePickers);
       </select>
       <input type="text" id="audit-filter-operator" placeholder="搜索操作人..." oninput="debounceAuditSearch()"
         class="border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 w-28" />
+      <button id="btn-toggle-system" onclick="toggleSystemLogs()"
+        class="border border-gray-200 rounded-lg px-2 py-1.5 bg-white hover:bg-gray-50 text-gray-500 text-xs transition-colors">
+        显示系统操作
+      </button>
     </div>
     <div class="overflow-x-auto">
       <table class="data-table w-full text-xs md:text-sm border-collapse">
         <thead>
           <tr class="bg-gray-100 text-gray-500 text-xs uppercase">
-            <th class="text-left px-3 py-2">操作时间</th>
+            <th class="text-left px-3 py-2">时间</th>
             <th class="text-left px-3 py-2">操作人</th>
-            <th class="text-left px-3 py-2">IP</th>
             <th class="text-left px-3 py-2">类型</th>
-            <th class="text-left px-3 py-2">对象表</th>
-            <th class="text-left px-3 py-2">流水号</th>
-            <th class="text-left px-3 py-2">变更详情</th>
+            <th class="text-left px-3 py-2">对象</th>
+            <th class="text-left px-3 py-2">变更内容</th>
           </tr>
         </thead>
         <tbody id="audit-table-body"></tbody>
@@ -2653,6 +2655,80 @@ async function deleteAccount(accountId, accountName) {
 // ================================================================
 // 审计日志（分页+筛选）
 // ================================================================
+const FIELD_LABELS = {
+  transaction_date: '日期', tx_type: '收支类型', amount: '金额', category: '分类',
+  counterparty: '交易对方', description: '交易说明', account_id: '关联账户',
+  record_type: '记录类型', lock_status: '锁定状态', period_id: '账期',
+  current_balance: '当前余额', account_name: '账户名称',
+  owner_uid: '归属人', owner_name: '归属人名称', receipt_urls: '凭证'
+};
+const TX_TYPE_MAP = { income: '收入', expense: '支出' };
+const RECORD_TYPE_MAP = { normal: '正常', reversal: '冲销', correction: '补录' };
+const LOCK_STATUS_MAP = { locked: '已锁定', unlocked: '未锁定', pending_lock: '待锁定' };
+
+function describeChange(l) {
+  const before = l.before_value || {};
+  const after = l.after_value || {};
+  const table = l.target_table;
+  const action = l.action_type;
+  const parts = [];
+
+  if (action === 'create') {
+    // 新增记录
+    const amt = after.amount != null ? (TX_TYPE_MAP[after.tx_type] || '') + ' ' + fmtMoney(Math.abs(Number(after.amount))) : '';
+    const cp = after.counterparty ? after.counterparty : '';
+    const cat = after.category ? after.category : '';
+    parts.push(`${cat ? cat + ' · ' : ''}${cp}${amt ? ' · ' + amt : ''}`);
+  } else {
+    // 修改/冲销等：列出具体变更字段
+    const allKeys = new Set([...Object.keys(before), ...Object.keys(after)]);
+    for (const key of allKeys) {
+      const label = FIELD_LABELS[key] || key;
+      const bv = before[key], av = after[key];
+      if (JSON.stringify(bv) === JSON.stringify(av)) continue;
+      const oldV = formatFieldValue(key, bv);
+      const newV = formatFieldValue(key, av);
+      if (table === 'accounts' && key === 'current_balance') {
+        parts.push(`余额 ${oldV || '—'} → ${newV}`);
+      } else {
+        parts.push(`${label}: ${oldV || '—'} → ${newV}`);
+      }
+    }
+    if (!parts.length) parts.push('无实质变更');
+  }
+  return parts.join('；');
+}
+
+function formatFieldValue(key, val) {
+  if (val == null) return '';
+  if (key === 'amount') return fmtMoney(Math.abs(Number(val)));
+  if (key === 'tx_type') return TX_TYPE_MAP[val] || val;
+  if (key === 'record_type') return RECORD_TYPE_MAP[val] || val;
+  if (key === 'lock_status') return LOCK_STATUS_MAP[val] || val;
+  if (key === 'receipt_urls') return Array.isArray(val) ? val.length + '张凭证' : String(val);
+  if (Array.isArray(val)) return val.join(', ');
+  return String(val);
+}
+
+function describeTarget(table, serial, l) {
+  if (table === 'transactions') {
+    const cp = l.after_value?.counterparty || l.before_value?.counterparty || '';
+    return cp ? `流水(${cp})` : `流水#${serial?.slice(0,8) || '--'}`;
+  }
+  if (table === 'accounts') {
+    const name = l.after_value?.account_name || l.before_value?.account_name || '';
+    return name ? `账户(${name})` : `账户#${serial?.slice(0,8) || '--'}`;
+  }
+  return `${table}#${serial?.slice(0,8) || '--'}`;
+}
+
+let showSystemLogs = false;
+function toggleSystemLogs() {
+  showSystemLogs = !showSystemLogs;
+  loadAuditLogs();
+  document.getElementById('btn-toggle-system').textContent = showSystemLogs ? '隐藏系统操作' : '显示系统操作';
+}
+
 async function loadAuditLogs(reset = true) {
   if (reset) auditOffset = 0;
 
@@ -2668,44 +2744,50 @@ async function loadAuditLogs(reset = true) {
   if (operator)   query = query.ilike('operator_name', `%${operator}%`);
 
   const { data: logs, count } = await query;
-  const list = logs || [];
+  let list = (logs || []).filter(l => showSystemLogs || l.operator_name !== 'SYSTEM');
+  const totalCount = count || 0;
 
   const actionMap = {
     create:'新增', update:'修改', reversal:'冲销',
     correction:'补录', lock:'锁定', unlock:'解锁', pending_lock:'待锁定'
   };
+  const actionColorMap = {
+    create:'bg-green-100 text-green-700', update:'bg-blue-100 text-blue-700',
+    reversal:'bg-red-100 text-red-700', correction:'bg-orange-100 text-orange-700',
+    lock:'bg-yellow-100 text-yellow-700', unlock:'bg-gray-100 text-gray-600',
+    pending_lock:'bg-yellow-100 text-yellow-700'
+  };
 
   const tbody = document.getElementById('audit-table-body');
   if (reset) tbody.innerHTML = '';
+
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center text-gray-400 py-8">暂无日志</td></tr>`;
+  }
+
   tbody.innerHTML += list.map(l => {
-    const before = l.before_value ? JSON.stringify(l.before_value).slice(0, 60) + '...' : '--';
-    const after  = l.after_value  ? JSON.stringify(l.after_value).slice(0, 60)  + '...' : '--';
+    const actionLabel = actionMap[l.action_type] || l.action_type;
+    const actionColor = actionColorMap[l.action_type] || 'bg-gray-100 text-gray-600';
+    const isSystem = l.operator_name === 'SYSTEM';
+    const desc = describeChange(l);
+    const target = describeTarget(l.target_table, l.target_serial, l);
     return `
-      <tr class="border-b border-gray-50 hover:bg-gray-50 text-xs md:text-sm">
-        <td class="px-3 py-2 whitespace-nowrap">${fmtDateTime(l.operated_at)}</td>
-        <td class="px-3 py-2">${escHtml(l.operator_name)}</td>
+      <tr class="border-b border-gray-50 hover:bg-gray-50 text-xs md:text-sm ${isSystem ? 'opacity-60' : ''}">
+        <td class="px-3 py-2 whitespace-nowrap text-gray-500">${fmtDateTime(l.operated_at)}</td>
+        <td class="px-3 py-2 ${isSystem ? 'text-gray-400' : ''}">${escHtml(l.operator_name)}${isSystem ? ' ⚙️' : ''}</td>
         <td class="px-3 py-2 text-gray-400">${escHtml(l.operator_ip || '--')}</td>
         <td class="px-3 py-2">
-          <span class="px-1.5 py-0.5 rounded text-xs bg-gray-100">${actionMap[l.action_type] || l.action_type}</span>
+          <span class="px-1.5 py-0.5 rounded text-xs ${actionColor}">${actionLabel}</span>
         </td>
-        <td class="px-3 py-2 text-gray-400">${escHtml(l.target_table)}</td>
-        <td class="px-3 py-2 text-gray-400 font-mono text-[11px]">${escHtml(l.target_serial || '--')}</td>
-        <td class="px-3 py-2 max-w-xs">
-          <details class="cursor-pointer">
-            <summary class="text-blue-500">查看变更</summary>
-            <div class="mt-1 space-y-1">
-              <div class="text-red-400">前：${escHtml(before)}</div>
-              <div class="text-green-600">后：${escHtml(after)}</div>
-            </div>
-          </details>
-        </td>
+        <td class="px-3 py-2 text-gray-500">${escHtml(target)}</td>
+        <td class="px-3 py-2 max-w-[300px] text-gray-600">${escHtml(desc)}</td>
       </tr>
     `;
   }).join('');
 
-  auditOffset += list.length;
-  document.getElementById('audit-load-more').classList.toggle('hidden', auditOffset >= count);
-  document.getElementById('audit-count-info').textContent = `已加载 ${auditOffset} / ${count || 0} 条`;
+  auditOffset += (logs || []).length;
+  document.getElementById('audit-load-more').classList.toggle('hidden', auditOffset >= totalCount);
+  document.getElementById('audit-count-info').textContent = `已加载 ${auditOffset} / ${totalCount} 条`;
 }
 
 function loadMoreAudit() { loadAuditLogs(false); }
@@ -2730,22 +2812,14 @@ async function exportAuditCSV() {
       return;
     }
 
-    const actionMap = {
-      create:'新增', update:'修改', reversal:'冲销',
-      correction:'补录', lock:'锁定', unlock:'解锁', pending_lock:'待锁定'
-    };
-
     const BOM = '\uFEFF';
-    const header = '操作时间,操作人,IP,类型,对象表,流水号,变更前,变更后\n';
+    const header = '操作时间,操作人,类型,对象,变更内容\n';
     const rows = logs.map(l => [
       fmtDateTime(l.operated_at),
       l.operator_name || '',
-      l.operator_ip || '',
-      actionMap[l.action_type] || l.action_type,
-      l.target_table || '',
-      l.target_serial || '',
-      l.before_value ? JSON.stringify(l.before_value) : '',
-      l.after_value ? JSON.stringify(l.after_value) : ''
+      l.action_type || '',
+      describeTarget(l.target_table, l.target_serial, l),
+      describeChange(l)
     ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
 
     const blob = new Blob([BOM + header + rows], { type: 'text/csv;charset=utf-8;' });
