@@ -1446,14 +1446,14 @@ document.addEventListener('DOMContentLoaded', initCustomDatePickers);
 
 <!-- 凭证列表弹窗 -->
 <div id="modal-receipt-viewer" class="fixed inset-0 hidden modal-backdrop bg-black/30" style="z-index:70">
-  <div class="absolute inset-x-4 top-[10%] md:relative md:inset-auto md:mx-auto md:my-8 md:max-w-2xl
-              bg-white rounded-2xl shadow-2xl p-5 max-h-[80vh] flex flex-col">
-    <div class="flex items-center justify-between mb-4">
-      <h3 class="font-bold text-lg" id="receipt-viewer-title">查看凭证</h3>
-      <button onclick="closeModal('modal-receipt-viewer')" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+  <div class="absolute inset-x-4 top-1/2 -translate-y-1/2 md:relative md:inset-auto md:mx-auto md:my-auto md:max-w-lg
+              bg-white rounded-2xl shadow-2xl max-h-[80vh] flex flex-col">
+    <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between shrink-0">
+      <h3 class="font-bold text-base" id="receipt-viewer-title">查看凭证</h3>
+      <button onclick="closeModal('modal-receipt-viewer')" class="text-gray-400 hover:text-gray-600 text-xl w-7 h-7 flex items-center justify-center">×</button>
     </div>
-    <div id="receipt-viewer-body" class="flex-1 overflow-y-auto">
-      <div class="grid grid-cols-3 md:grid-cols-4 gap-3" id="receipt-grid"></div>
+    <div id="receipt-viewer-body" class="flex-1 overflow-y-auto p-4">
+      <div class="grid grid-cols-3 md:grid-cols-4 gap-2" id="receipt-grid"></div>
     </div>
   </div>
 </div>
@@ -3828,7 +3828,7 @@ function closeImageViewer(e) {
 // 打开凭证列表弹窗（实时从数据库查询，确保数据准确）
 async function openReceiptViewer(txId, counterparty) {
   document.getElementById('receipt-viewer-title').textContent = `查看凭证 - ${counterparty || '记录'}`;
-  document.getElementById('receipt-grid').innerHTML = '<div class="col-span-full text-center text-gray-400 py-8">加载中...</div>';
+  document.getElementById('receipt-grid').innerHTML = '<div class="col-span-full text-center text-gray-400 py-4 text-sm">加载中...</div>';
   openModal('modal-receipt-viewer');
 
   try {
@@ -3840,7 +3840,7 @@ async function openReceiptViewer(txId, counterparty) {
     const grid = document.getElementById('receipt-grid');
 
     if (!urls.length) {
-      grid.innerHTML = '<div class="col-span-full text-center text-gray-400 py-8">暂无凭证</div>';
+      grid.innerHTML = '<div class="col-span-full text-center text-gray-400 py-4 text-sm">暂无凭证</div>';
       return;
     }
 
@@ -3851,7 +3851,7 @@ async function openReceiptViewer(txId, counterparty) {
       </div>
     `).join('');
   } catch (err) {
-    document.getElementById('receipt-grid').innerHTML = `<div class="col-span-full text-center text-red-400 py-8">加载失败：${escHtml(err.message)}</div>`;
+    document.getElementById('receipt-grid').innerHTML = `<div class="col-span-full text-center text-red-400 py-4 text-sm">加载失败：${escHtml(err.message)}</div>`;
   }
 }
 
