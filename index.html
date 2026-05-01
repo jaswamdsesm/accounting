@@ -696,7 +696,7 @@ document.addEventListener('DOMContentLoaded', initCustomDatePickers);
   class="fixed top-0 left-0 h-full w-[200px] bg-white border-r border-gray-200 flex-col z-30 hidden">
   <div class="px-5 py-5 border-b border-gray-100">
     <h1 class="text-base font-bold text-gray-800 flex items-center gap-2"><svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 7h6m-6 4h6m-6 4h4M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z"/></svg>股东记账</h1>
-    <p id="sidebar-user" class="text-xs text-gray-400 mt-1 truncate">加载中...</p>
+    <p id="sidebar-user" class="text-xs text-gray-400 mt-1 truncate cursor-pointer hover:text-blue-500" onclick="switchUser()">加载中...</p>
   </div>
   <nav class="flex-1 overflow-y-auto py-3">
     <button onclick="switchPage('dashboard')" data-page="dashboard"
@@ -945,19 +945,21 @@ document.addEventListener('DOMContentLoaded', initCustomDatePickers);
         显示系统操作
       </button>
     </div>
-    <div class="overflow-x-auto rounded-lg border border-gray-100">
-      <table class="data-table w-full text-xs md:text-sm border-collapse">
-        <thead>
-          <tr class="bg-gray-100 text-gray-500 text-xs uppercase">
-            <th class="text-left px-3 py-2 whitespace-nowrap">时间</th>
-            <th class="text-left px-3 py-2 whitespace-nowrap">操作人</th>
-            <th class="text-left px-3 py-2 whitespace-nowrap">类型</th>
-            <th class="text-left px-3 py-2 whitespace-nowrap">对象</th>
-            <th class="text-left px-3 py-2 min-w-[140px]">变更内容</th>
-          </tr>
-        </thead>
-        <tbody id="audit-table-body"></tbody>
-      </table>
+    <div class="rounded-lg border border-gray-100 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="data-table w-full text-xs md:text-sm border-collapse">
+          <thead>
+            <tr class="bg-gray-100 text-gray-500 text-xs uppercase">
+              <th class="text-left px-3 py-2 whitespace-nowrap first:rounded-tl-lg">时间</th>
+              <th class="text-left px-3 py-2 whitespace-nowrap">操作人</th>
+              <th class="text-left px-3 py-2 whitespace-nowrap">类型</th>
+              <th class="text-left px-3 py-2 whitespace-nowrap">对象</th>
+              <th class="text-left px-3 py-2 last:rounded-tr-lg min-w-[140px]">变更内容</th>
+            </tr>
+          </thead>
+          <tbody id="audit-table-body"></tbody>
+        </table>
+      </div>
     </div>
     <div class="flex justify-center py-4 gap-3">
       <button id="audit-load-more" onclick="loadMoreAudit()"
@@ -1749,35 +1751,42 @@ function callRequestAuthCode(ttObj, resolve, reject) {
 // 开发调试登录（非飞书环境）
 // ================================================================
 async function devLogin() {
-  // 查询所有用户，弹出选择框
   const { data: users } = await sb.from('app_users').select('*').order('created_at');
   if (!users || users.length === 0) {
     const { data: newUser } = await sb.from('app_users').insert({
       feishu_uid: 'dev-user-001',
-      name: '开发者',
+      name: 'ALI',
       role: 'shareholder_bookkeeper'
     }).select().single();
     currentUser = newUser;
-  } else if (users.length === 1) {
-    currentUser = users[0];
   } else {
-    // 多用户时弹出选择
-    const list = users.map((u, i) => `${i + 1}. ${u.name} [${roleLabel(u.role)}]`).join('\n');
-    const choice = prompt('请选择登录用户（输入序号）：\n' + list);
-    if (choice === null) {
-      // 用户点了取消，不登录
-      showToast('已取消登录', 'info');
-      return;
-    }
-    const idx = parseInt(choice) - 1;
-    if (isNaN(idx) || idx < 0 || idx >= users.length) {
-      showToast('无效选择，默认使用第一个用户', 'warning');
-      currentUser = users[0];
-    } else {
-      currentUser = users[idx];
-    }
+    // 优先匹配 ALI（忽略大小写），其次选 shareholder_bookkeeper，最后选第一个
+    currentUser = users.find(u => u.name && u.name.toLowerCase() === 'ali')
+                || users.find(u => u.role === 'shareholder_bookkeeper')
+                || users[0];
   }
+  renderSidebarUser();
+}
+
+function renderSidebarUser() {
+  if (!currentUser) return;
   document.getElementById('sidebar-user').textContent = currentUser.name + ' · ' + roleLabel(currentUser.role);
+}
+
+// 切换用户（点击侧边栏用户名触发）
+async function switchUser() {
+  const { data: users } = await sb.from('app_users').select('*').order('created_at');
+  if (!users || users.length <= 1) { showToast('只有一个用户', 'info'); return; }
+  const list = users.map((u, i) => `${i + 1}. ${u.name} [${roleLabel(u.role)}]`).join('\n');
+  const choice = prompt('切换到（输入序号）：\n' + list);
+  if (choice === null) return;
+  const idx = parseInt(choice) - 1;
+  if (isNaN(idx) || idx < 0 || idx >= users.length) { showToast('无效选择', 'warning'); return; }
+  currentUser = users[idx];
+  renderSidebarUser();
+  showToast('已切换为 ' + currentUser.name, 'success');
+  // 刷新当前页面数据
+  if (currentPage === 'transactions') loadTransactions();
 }
 
 function roleLabel(role) {
