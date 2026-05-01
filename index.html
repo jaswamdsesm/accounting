@@ -1595,13 +1595,16 @@ const DESCRIPTION_TEMPLATES = [
 ];
 
 // ================================================================
-// 夜间模式
+// 夜间模式（支持跟随手机系统主题）
 // ================================================================
 function toggleDarkMode() {
   isDarkMode = !isDarkMode;
   document.body.classList.toggle('dark', isDarkMode);
   document.documentElement.classList.toggle('dark', isDarkMode);
+  // 手动切换时写入 localStorage，标记为用户主动设置
   localStorage.setItem('shareholder_dark_mode', isDarkMode ? '1' : '0');
+  // 手动切换后，取消系统主题监听
+  systemDarkMedia = null;
   updateDarkModeUI();
 }
 
@@ -1614,10 +1617,27 @@ function updateDarkModeUI() {
   }
 }
 
+let systemDarkMedia = null;  // 系统主题变化监听器
+
 function initDarkMode() {
   const saved = localStorage.getItem('shareholder_dark_mode');
-  // 优先 localStorage，其次跟随系统偏好
-  isDarkMode = saved === '1' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  if (saved) {
+    // 用户手动设置过，使用保存的值，不再跟随系统
+    isDarkMode = saved === '1';
+  } else {
+    // 未手动设置过，跟随系统偏好，并注册监听器
+    isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    // 监听系统主题变化，实时跟随
+    systemDarkMedia = window.matchMedia('(prefers-color-scheme: dark)');
+    systemDarkMedia.addEventListener('change', (e) => {
+      // 如果用户已手动设置过（localStorage 有值），不跟随
+      if (localStorage.getItem('shareholder_dark_mode')) return;
+      isDarkMode = e.matches;
+      document.body.classList.toggle('dark', isDarkMode);
+      document.documentElement.classList.toggle('dark', isDarkMode);
+      updateDarkModeUI();
+    });
+  }
   document.body.classList.toggle('dark', isDarkMode);
   updateDarkModeUI();
 }
