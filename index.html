@@ -1444,6 +1444,20 @@ document.addEventListener('DOMContentLoaded', initCustomDatePickers);
   <img id="image-viewer-img" class="max-w-[95vw] max-h-[90vh] object-contain rounded" />
 </div>
 
+<!-- 凭证列表弹窗 -->
+<div id="modal-receipt-viewer" class="fixed inset-0 hidden modal-backdrop bg-black/30" style="z-index:70">
+  <div class="absolute inset-x-4 top-[10%] md:relative md:inset-auto md:mx-auto md:my-8 md:max-w-2xl
+              bg-white rounded-2xl shadow-2xl p-5 max-h-[80vh] flex flex-col">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-bold text-lg" id="receipt-viewer-title">查看凭证</h3>
+      <button onclick="closeModal('modal-receipt-viewer')" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+    </div>
+    <div id="receipt-viewer-body" class="flex-1 overflow-y-auto">
+      <div class="grid grid-cols-3 md:grid-cols-4 gap-3" id="receipt-grid"></div>
+    </div>
+  </div>
+</div>
+
 
 <!-- ============================================================
      飞书通知设置 模态框
@@ -2130,18 +2144,18 @@ function renderTxCard(t) {
           ${!isLocked && canBookkeep() ? `
             <button onclick="triggerReceiptUpload('${t.id}')"
               class="btn-touch text-xs px-3 py-1.5 rounded-lg bg-green-50 text-green-600 border border-green-200 min-h-[44px]">
-              上传凭证${t.receipt_urls && t.receipt_urls.length ? `(${t.receipt_urls.length})` : ''}
+              上传凭证
+            </button>
+          ` : ''}
+          ${t.receipt_urls && Array.isArray(t.receipt_urls) && t.receipt_urls.length > 0 ? `
+            <button onclick="openReceiptViewer('${t.id}', '${escHtml(t.counterparty || '')}')"
+              class="btn-touch text-xs px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 min-h-[44px]">
+              查看凭证(${t.receipt_urls.length})
             </button>
           ` : ''}
           ${isLocked ? `<span class="text-[10px] text-gray-400 self-center inline-flex items-center gap-0.5"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>已锁定</span>` : ''}
         </div>
       </div>
-      ${t.receipt_urls && t.receipt_urls.length ? `
-      <div class="flex gap-1 mt-2 flex-wrap">
-        ${t.receipt_urls.map(url => `
-          <img src="${escHtml(url)}" class="w-12 h-12 object-cover rounded border cursor-pointer hover:opacity-80" onclick="openImageViewer('${escHtml(url)}')" />
-        `).join('')}
-      </div>` : ''}
     </div>
   `;
 }
@@ -2201,22 +2215,17 @@ function renderTxRow(t) {
         ${!isLocked && canBookkeep() ? `
           <button onclick="triggerReceiptUpload('${t.id}')"
             class="text-xs px-2 py-1 rounded text-green-600 hover:bg-green-50 border border-transparent hover:border-green-200 transition-colors">
-            凭证${t.receipt_urls && t.receipt_urls.length ? `(${t.receipt_urls.length})` : ''}
+            上传凭证
+          </button>
+        ` : ''}
+        ${t.receipt_urls && Array.isArray(t.receipt_urls) && t.receipt_urls.length > 0 ? `
+          <button onclick="openReceiptViewer('${t.id}', '${escHtml(t.counterparty || '')}')"
+            class="text-xs px-2 py-1 rounded text-blue-600 hover:bg-blue-50 border border-transparent hover:border-blue-200 transition-colors ml-1">
+            查看凭证(${t.receipt_urls.length})
           </button>
         ` : ''}
       </td>
     </tr>
-    ${t.receipt_urls && t.receipt_urls.length ? `
-    <tr class="${cls}">
-      <td colspan="10" class="px-3 pb-2">
-        <div class="flex gap-1 flex-wrap">
-          ${t.receipt_urls.map(url => `
-            <img src="${escHtml(url)}" class="w-10 h-10 object-cover rounded border cursor-pointer hover:opacity-80" onclick="openImageViewer('${escHtml(url)}')" />
-          `).join('')}
-        </div>
-      </td>
-    </tr>
-    ` : ''}
   `;
 }
 
@@ -3752,6 +3761,36 @@ function closeImageViewer(e) {
   if (e && e.target !== e.currentTarget) return;
   document.getElementById('modal-image-viewer').classList.add('hidden');
   document.body.style.overflow = '';
+}
+
+// 打开凭证列表弹窗（实时从数据库查询，确保数据准确）
+async function openReceiptViewer(txId, counterparty) {
+  document.getElementById('receipt-viewer-title').textContent = `查看凭证 - ${counterparty || '记录'}`;
+  document.getElementById('receipt-grid').innerHTML = '<div class="col-span-full text-center text-gray-400 py-8">加载中...</div>';
+  openModal('modal-receipt-viewer');
+
+  try {
+    // 用 RPC 查询，绕过 RLS 确保读到的数据准确
+    const { data, error } = await sb.rpc('get_receipts', { tx_id: txId });
+    if (error) throw error;
+
+    const urls = Array.isArray(data) ? data : [];
+    const grid = document.getElementById('receipt-grid');
+
+    if (!urls.length) {
+      grid.innerHTML = '<div class="col-span-full text-center text-gray-400 py-8">暂无凭证</div>';
+      return;
+    }
+
+    grid.innerHTML = urls.map(url => `
+      <div class="aspect-square rounded-lg overflow-hidden border border-gray-200 cursor-pointer hover:border-blue-400 transition-colors"
+           onclick="openImageViewer('${escHtml(url)}')">
+        <img src="${escHtml(url)}" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='<div class=\\'flex items-center justify-center h-full text-gray-300 text-xs\\'>加载失败</div>'" />
+      </div>
+    `).join('');
+  } catch (err) {
+    document.getElementById('receipt-grid').innerHTML = `<div class="col-span-full text-center text-red-400 py-8">加载失败：${escHtml(err.message)}</div>`;
+  }
 }
 
 // 触发为已有记录上传凭证
