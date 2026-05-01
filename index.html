@@ -3483,18 +3483,24 @@ function canBookkeep() {
 // 模态框工具
 // ================================================================
 function openModal(id) {
-  document.getElementById(id).classList.remove('hidden');
+  const el = document.getElementById(id);
+  el.classList.remove('hidden');
+  // 桌面端用 flex（居中布局），移动端用 block（底部抽屉）
+  el.style.display = window.innerWidth >= 768 ? 'flex' : 'block';
   // 锁住背景滚动
   const scrollY = window.scrollY || window.pageYOffset;
   document.body.style.overflow = 'hidden';
   document.body.style.position = 'fixed';
   document.body.style.top      = '-' + scrollY + 'px';
   document.body.style.left     = '0';
-  document.body.style.right   = '0';
+  document.body.style.right    = '0';
   document.body.dataset.scrollY = scrollY;
 }
 function closeModal(id) {
-  document.getElementById(id).classList.add('hidden');
+  const el = document.getElementById(id);
+  // 直接设 display:none，优先级高于 md:flex，确保弹窗关闭
+  el.style.display = 'none';
+  el.classList.add('hidden');
   // 恢复背景滚动
   const scrollY = parseInt(document.body.dataset.scrollY) || 0;
   document.body.style.overflow = '';
