@@ -1632,18 +1632,24 @@ async function init() {
   sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
   try {
-    await feishuLogin();
-  } catch(e) {
-    console.warn('飞书免登失败，回退调试模式:', e.message);
-    await devLogin();
-  }
+    try {
+      await feishuLogin();
+    } catch(e) {
+      console.warn('飞书免登失败，回退调试模式:', e.message);
+      await devLogin();
+    }
 
-  await loadAccounts();
-  initDashboardPeriod();
-  await loadDashboard();
-  switchPage('dashboard');
-  setupPasteDrop();
-  hideLoading();
+    await loadAccounts();
+    initDashboardPeriod();
+    await loadDashboard();
+    switchPage('dashboard');
+    setupPasteDrop();
+  } catch(e) {
+    console.error('初始化失败:', e);
+    showToast('初始化失败：' + e.message, 'error');
+  } finally {
+    hideLoading();
+  }
 }
 
 // ================================================================
@@ -3350,10 +3356,16 @@ async function castVote(vote) {
   try {
     const { data: ap } = await sb.from('approvals').select('*').eq('id', approvalId).single();
     let votes = ap.votes || [];
-    // 替换已有投票（同一人只能有一条投票记录）
+    // 判断是否重复投票（已投过且选择相同）
     const existingIdx = votes.findIndex(v => v.user_id === currentUser.id);
+    const isSameVote = existingIdx >= 0 && votes[existingIdx].vote === vote;
     if (existingIdx >= 0) {
-      votes[existingIdx] = { user_id: currentUser.id, name: currentUser.name, vote, voted_at: new Date().toISOString() };
+      if (isSameVote) {
+        // 相同选择，只更新时间戳，不触发通知
+        votes[existingIdx].voted_at = new Date().toISOString();
+      } else {
+        votes[existingIdx] = { user_id: currentUser.id, name: currentUser.name, vote, voted_at: new Date().toISOString() };
+      }
     } else {
       votes.push({ user_id: currentUser.id, name: currentUser.name, vote, voted_at: new Date().toISOString() });
     }
@@ -3368,15 +3380,17 @@ async function castVote(vote) {
     await sb.from('approvals').update({ votes, status: newStatus, resolved_at: newStatus !== 'pending' ? new Date().toISOString() : null })
       .eq('id', approvalId);
 
-    // 每次投票都通知到飞书群
-    const voteLabel = vote === 'approve' ? '同意' : '拒绝';
-    const statusHint = newStatus === 'pending'
-      ? `当前 ${approveCount} 同意 / ${rejectCount} 拒绝，还需 ${Math.max(0, 3 - approveCount)} 票同意`
-      : (newStatus === 'approved' ? '审批已通过！' : '审批已被拒绝');
-    await sendFeishuNotify(
-      `${currentUser.name} 参与了投票`,
-      `**${ap.title}**\n${currentUser.name} 投了 ${voteLabel}\n${statusHint}`
-    );
+    // 只有改票或首次投票才通知
+    if (!isSameVote) {
+      const voteLabel = vote === 'approve' ? '同意' : '拒绝';
+      const statusHint = newStatus === 'pending'
+        ? `当前 ${approveCount} 同意 / ${rejectCount} 拒绝，还需 ${Math.max(0, 3 - approveCount)} 票同意`
+        : (newStatus === 'approved' ? '审批已通过！' : '审批已被拒绝');
+      await sendFeishuNotify(
+        `${currentUser.name} 参与了投票`,
+        `**${ap.title}**\n${currentUser.name} 投了 ${voteLabel}\n${statusHint}`
+      );
+    }
 
     // 账期锁定：审批通过后批量锁定
     if (newStatus === 'approved' && ap.approval_type === 'period_lock' && ap.billing_period) {
@@ -3415,8 +3429,13 @@ async function castVoteDirect(approvalId, vote) {
     const { data: ap } = await sb.from('approvals').select('*').eq('id', approvalId).single();
     let votes = ap.votes || [];
     const existingIdx = votes.findIndex(v => v.user_id === currentUser.id);
+    const isSameVote = existingIdx >= 0 && votes[existingIdx].vote === vote;
     if (existingIdx >= 0) {
-      votes[existingIdx] = { user_id: currentUser.id, name: currentUser.name, vote, voted_at: new Date().toISOString() };
+      if (isSameVote) {
+        votes[existingIdx].voted_at = new Date().toISOString();
+      } else {
+        votes[existingIdx] = { user_id: currentUser.id, name: currentUser.name, vote, voted_at: new Date().toISOString() };
+      }
     } else {
       votes.push({ user_id: currentUser.id, name: currentUser.name, vote, voted_at: new Date().toISOString() });
     }
@@ -3430,14 +3449,17 @@ async function castVoteDirect(approvalId, vote) {
     await sb.from('approvals').update({ votes, status: newStatus, resolved_at: newStatus !== 'pending' ? new Date().toISOString() : null })
       .eq('id', approvalId);
 
-    const voteLabel = vote === 'approve' ? '同意' : '拒绝';
-    const statusHint = newStatus === 'pending'
-      ? `当前 ${approveCount} 同意 / ${rejectCount} 拒绝，还需 ${Math.max(0, 3 - approveCount)} 票同意`
-      : (newStatus === 'approved' ? '审批已通过！' : '审批已被拒绝');
-    await sendFeishuNotify(
-      `${currentUser.name} 参与了投票`,
-      `**${ap.title}**\n${currentUser.name} 投了 ${voteLabel}\n${statusHint}`
-    );
+    // 只有改票或首次投票才通知
+    if (!isSameVote) {
+      const voteLabel = vote === 'approve' ? '同意' : '拒绝';
+      const statusHint = newStatus === 'pending'
+        ? `当前 ${approveCount} 同意 / ${rejectCount} 拒绝，还需 ${Math.max(0, 3 - approveCount)} 票同意`
+        : (newStatus === 'approved' ? '审批已通过！' : '审批已被拒绝');
+      await sendFeishuNotify(
+        `${currentUser.name} 参与了投票`,
+        `**${ap.title}**\n${currentUser.name} 投了 ${voteLabel}\n${statusHint}`
+      );
+    }
 
     // 账期锁定：审批通过后批量锁定
     if (newStatus === 'approved' && ap.approval_type === 'period_lock' && ap.billing_period) {
