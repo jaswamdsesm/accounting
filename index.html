@@ -886,6 +886,7 @@ document.addEventListener('DOMContentLoaded', initCustomDatePickers);
             <th class="text-left px-3 py-2">分类</th>
             <th class="text-left px-3 py-2">关联账户</th>
             <th class="text-left px-3 py-2">交易对方</th>
+            <th class="text-left px-3 py-2">备注</th>
             <th class="text-center px-3 py-2">状态</th>
             <th class="text-center px-3 py-2">类型</th>
             <th class="text-right px-3 py-2 rounded-tr-lg">操作</th>
@@ -2173,6 +2174,7 @@ function renderTxRow(t) {
       <td class="px-3 py-2 text-sm">${escHtml(t.category)}</td>
       <td class="px-3 py-2 text-sm text-gray-500">${escHtml(accountName)}</td>
       <td class="px-3 py-2 text-sm">${escHtml(t.counterparty)}</td>
+      <td class="px-3 py-2 text-sm text-gray-500 max-w-[200px] truncate" title="${escHtml(t.description || '')}">${escHtml(t.description || '--')}</td>
       <td class="px-3 py-2 text-center">${lockBadge}</td>
       <td class="px-3 py-2 text-center">${typeBadge}</td>
       <td class="px-3 py-2 text-right whitespace-nowrap">
