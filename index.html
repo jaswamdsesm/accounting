@@ -1762,10 +1762,13 @@ async function devLogin() {
     currentUser = users[0];
   } else {
     // 多用户时弹出选择
-    const choice = prompt(
-      '请选择登录用户（输入序号）：\n' +
-      users.map((u, i) => `${i + 1}. ${u.name} [${roleLabel(u.role)}]`).join('\n')
-    );
+    const list = users.map((u, i) => `${i + 1}. ${u.name} [${roleLabel(u.role)}]`).join('\n');
+    const choice = prompt('请选择登录用户（输入序号）：\n' + list);
+    if (choice === null) {
+      // 用户点了取消，不登录
+      showToast('已取消登录', 'info');
+      return;
+    }
     const idx = parseInt(choice) - 1;
     if (isNaN(idx) || idx < 0 || idx >= users.length) {
       showToast('无效选择，默认使用第一个用户', 'warning');
