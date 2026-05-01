@@ -1478,7 +1478,7 @@ document.addEventListener('DOMContentLoaded', initCustomDatePickers);
     </div>
     <div id="receipt-file-preview" class="flex flex-wrap gap-3 mt-3"></div>
     <div class="flex justify-end gap-3 mt-5">
-      <button onclick="closeModal('modal-upload-receipt')" class="px-4 py-2 rounded-lg text-sm text-gray-500 hover:bg-gray-100 transition-colors">取消</button>
+      <button onclick="closeUploadReceiptModal()" class="px-4 py-2 rounded-lg text-sm text-gray-500 hover:bg-gray-100 transition-colors">取消</button>
       <button id="btn-upload-receipt" onclick="doUploadReceipt()" class="px-4 py-2 rounded-lg text-sm text-white bg-blue-500 hover:bg-blue-600 transition-colors disabled:opacity-50" disabled>上传</button>
     </div>
   </div>
@@ -3350,10 +3350,9 @@ function setupPasteDrop() {
     e.preventDefault();
 
     if (isUploadOpen) {
-      // 上传凭证弹窗模式：直接加入预览列表
-      imageFiles.forEach(f => receiptPendingFiles.push({ file: f, previewUrl: URL.createObjectURL(f) }));
-      renderReceiptFilePreview();
-      if (imageFiles.length > 1) showToast(`已添加 ${imageFiles.length} 张图片`, 'info');
+      // 上传凭证弹窗模式：走裁切流程
+      if (imageFiles.length > 1) showToast(`已处理第一张，共 ${imageFiles.length} 张，请逐次粘贴`, 'info');
+      openCropper(imageFiles[0]);
       return;
     }
 
@@ -3673,9 +3672,11 @@ function confirmCrop() {
     const croppedFile = new File([blob], fileName, { type: 'image/jpeg' });
 
     if (receiptUploadTxId) {
-      // 模式：为已有记录上传凭证，直接上传并关联
-      await uploadReceiptAndAttach(receiptUploadTxId, croppedFile);
-      receiptUploadTxId = null;
+      // 模式：上传凭证弹窗，裁切后加入预览列表
+      const previewUrl = URL.createObjectURL(blob);
+      receiptPendingFiles.push({ file: croppedFile, previewUrl });
+      renderReceiptFilePreview();
+      showToast('图片已裁切，可继续添加或点击上传', 'success');
     } else {
       // 模式：新增交易，暂存到 pendingFiles
       const previewUrl = URL.createObjectURL(blob);
@@ -3841,17 +3842,22 @@ function triggerReceiptUpload(txId) {
 
 let receiptPendingFiles = [];
 
+function closeUploadReceiptModal() {
+  closeModal('modal-upload-receipt');
+  receiptPendingFiles.forEach(item => { if (item.previewUrl) URL.revokeObjectURL(item.previewUrl); });
+  receiptPendingFiles = [];
+  receiptUploadTxId = null;
+}
+
 function handleReceiptFileSelect(e) {
   const files = Array.from(e.target.files);
-  files.forEach(f => receiptPendingFiles.push({ file: f, previewUrl: URL.createObjectURL(f) }));
-  renderReceiptFilePreview();
+  files.forEach(f => { if (f.type.startsWith('image/')) openCropper(f); });
   e.target.value = '';
 }
 
 function handleReceiptDrop(e) {
   const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
-  files.forEach(f => receiptPendingFiles.push({ file: f, previewUrl: URL.createObjectURL(f) }));
-  renderReceiptFilePreview();
+  files.forEach(f => openCropper(f));
 }
 
 function renderReceiptFilePreview() {
@@ -3894,7 +3900,9 @@ async function doUploadReceipt() {
     }
     showToast(`已上传 ${receiptPendingFiles.length} 张凭证`, 'success');
     closeModal('modal-upload-receipt');
+    receiptPendingFiles.forEach(item => { if (item.previewUrl) URL.revokeObjectURL(item.previewUrl); });
     receiptPendingFiles = [];
+    receiptUploadTxId = null;
     loadTransactions();
   } catch (err) {
     showToast('上传失败：' + err.message, 'error');
