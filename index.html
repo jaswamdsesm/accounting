@@ -2706,8 +2706,10 @@ function describeChange(l) {
     parts.push(`${cat ? cat + ' · ' : ''}${cp}${amt ? ' · ' + amt : ''}`);
   } else {
     // 修改/冲销等：列出具体变更字段
+    const SKIP_KEYS = new Set(['updated_at', 'created_at', 'id']);
     const allKeys = new Set([...Object.keys(before), ...Object.keys(after)]);
     for (const key of allKeys) {
+      if (SKIP_KEYS.has(key)) continue;
       const label = FIELD_LABELS[key] || key;
       const bv = before[key], av = after[key];
       if (JSON.stringify(bv) === JSON.stringify(av)) continue;
