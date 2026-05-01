@@ -2282,13 +2282,35 @@ async function submitTransaction(e) {
     // 先上传凭证图片（如有）
     const receiptUrls = await uploadFiles();
 
+    const txDate      = document.getElementById('tx-date').value;
+    const category    = document.getElementById('tx-category').value;
+    const counterparty = document.getElementById('tx-counterparty').value;
+    const amountVal   = recordType === 'reversal' ? -Math.abs(amount) : amount;
+
+    // 去重检查（冲销/补录不检查，因为它们本身就是对已有记录的操作）
+    if (recordType === 'normal') {
+      const { data: existing, error: dupErr } = await sb.from('transactions')
+        .select('id')
+        .eq('transaction_date', txDate)
+        .eq('tx_type', txType)
+        .eq('amount', amountVal)
+        .eq('category', category)
+        .eq('account_id', accountId)
+        .eq('counterparty', counterparty.trim())
+        .limit(1);
+      if (!dupErr && existing && existing.length > 0) {
+        showToast('该记录已存在，请勿重复录入', 'warning');
+        return;
+      }
+    }
+
     const payload = {
-      transaction_date: document.getElementById('tx-date').value,
+      transaction_date: txDate,
       tx_type:    txType,
-      amount:     recordType === 'reversal' ? -Math.abs(amount) : amount,
-      category:   document.getElementById('tx-category').value,
+      amount:     amountVal,
+      category:   category,
       account_id: accountId,
-      counterparty: document.getElementById('tx-counterparty').value,
+      counterparty: counterparty,
       description:  document.getElementById('tx-description').value || null,
       record_type:  recordType,
       related_serial: document.getElementById('tx-related-serial').value || null,
@@ -2888,7 +2910,17 @@ async function confirmImport() {
   btn.textContent = '导入中...';
 
   try {
-    let success = 0, fail = 0;
+    // 去重：查询数据库已有交易，构建去重集合
+    // 去重键 = 日期 + 收支类型 + 金额 + 分类 + 关联账户ID + 交易对方
+    const { data: existingTxs } = await sb.from('transactions')
+      .select('transaction_date, tx_type, amount, category, account_id, counterparty');
+    const dupSet = new Set();
+    (existingTxs || []).forEach(t => {
+      const key = `${t.transaction_date}|${t.tx_type}|${t.amount}|${t.category}|${t.account_id}|${(t.counterparty || '').trim()}`;
+      dupSet.add(key);
+    });
+
+    let success = 0, fail = 0, dup = 0;
     const errors = [];
 
     for (let i = 0; i < importData.length; i++) {
@@ -2900,6 +2932,13 @@ async function confirmImport() {
       if (!account) {
         fail++;
         errors.push(`第${i+2}行：账户"${row[4]}"不存在`);
+        continue;
+      }
+
+      // 去重检查
+      const dupKey = `${String(row[0])}|${txType}|${amount}|${String(row[3])}|${account.id}|${String(row[5]).trim()}`;
+      if (dupSet.has(dupKey)) {
+        dup++;
         continue;
       }
 
@@ -2923,6 +2962,8 @@ async function confirmImport() {
         errors.push(`第${i+2}行：${error.message}`);
       } else {
         success++;
+        // 插入成功后加入去重集合，防止本批次内重复
+        dupSet.add(dupKey);
       }
     }
 
@@ -2931,7 +2972,10 @@ async function confirmImport() {
     if (currentPage === 'transactions') loadTransactions();
 
     closeModal('modal-import');
-    showToast(`导入完成：成功 ${success} 条${fail > 0 ? `，失败 ${fail} 条` : ''}`, success > 0 ? 'success' : 'warning');
+    let msg = `导入完成：成功 ${success} 条`;
+    if (dup > 0) msg += `，跳过重复 ${dup} 条`;
+    if (fail > 0) msg += `，失败 ${fail} 条`;
+    showToast(msg, success > 0 ? 'success' : (dup > 0 ? 'warning' : 'error'));
 
   } catch(err) {
     showToast('导入失败：' + err.message, 'error');
