@@ -1577,7 +1577,6 @@ let reversalAmount = 0; // 冲销确认金额
 let isDarkMode = false;  // 夜间模式状态
 let accountFilterId = null;  // 账户筛选（从余额页跳转时使用）
 let accountFilterName = null;
-let approvalTimer = null;  // 审批中心自动刷新计时器
 
 // 收支备注模板
 const DESCRIPTION_TEMPLATES = [
@@ -1813,11 +1812,28 @@ function roleLabel(role) {
 // ================================================================
 // 页面切换
 // ================================================================
+// 所有页面自动刷新计时器（切走时统一清除）
+let pageRefreshTimers = {};
+const REFRESH_INTERVAL = 30000; // 30秒
+
+function clearAllRefreshTimers() {
+  Object.values(pageRefreshTimers).forEach(t => clearInterval(t));
+  pageRefreshTimers = {};
+}
+
+function startPageRefresh(page, loadFn) {
+  if (pageRefreshTimers[page]) clearInterval(pageRefreshTimers[page]);
+  pageRefreshTimers[page] = setInterval(() => {
+    if (currentPage === page) loadFn();
+  }, REFRESH_INTERVAL);
+}
+
+// ================================================================
 function switchPage(page) {
   currentPage = page;
 
-  // 清除审批中心自动刷新计时器
-  if (approvalTimer) { clearInterval(approvalTimer); approvalTimer = null; }
+  // 清除所有自动刷新计时器
+  clearAllRefreshTimers();
 
   // 隐藏所有页面
   document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
@@ -1831,22 +1847,14 @@ function switchPage(page) {
     btn.classList.toggle('font-semibold', isActive);
   });
 
-  // 按需加载
-  if (page === 'dashboard')    loadDashboard();
-  if (page === 'transactions') { txPage = 1; accountFilterId = null; accountFilterName = null; populateFilterAccounts(); loadTransactions(); initCustomSelects(); }
-  if (page === 'accounts')     loadAccountsPage();
-  if (page === 'audit')        loadAuditLogs();
-  if (page === 'approvals')    { loadApprovals(); startApprovalAutoRefresh(); }
+  // 按需加载 + 启动自动刷新
+  if (page === 'dashboard')    { loadDashboard();    startPageRefresh('dashboard',    loadDashboard); }
+  if (page === 'transactions') { txPage = 1; accountFilterId = null; accountFilterName = null; populateFilterAccounts(); loadTransactions(); initCustomSelects(); startPageRefresh('transactions', loadTransactions); }
+  if (page === 'accounts')     { loadAccountsPage(); startPageRefresh('accounts', loadAccountsPage); }
+  if (page === 'audit')        { loadAuditLogs();   startPageRefresh('audit',   () => { auditOffset = 0; loadAuditLogs(); }); }
+  if (page === 'approvals')    { loadApprovals();   startPageRefresh('approvals', loadApprovals); }
   if (page === 'settings')     loadSettings();
   if (page === 'profile')      loadProfile();
-}
-
-// 审批中心每30秒自动刷新
-function startApprovalAutoRefresh() {
-  if (approvalTimer) clearInterval(approvalTimer);
-  approvalTimer = setInterval(() => {
-    if (currentPage === 'approvals') loadApprovals();
-  }, 30000);
 }
 
 // ================================================================
