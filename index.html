@@ -1132,20 +1132,6 @@ document.addEventListener('DOMContentLoaded', initCustomDatePickers);
           <label class="block text-xs font-medium text-gray-500 mb-1">分类 <span class="text-red-500">*</span></label>
           <select id="tx-category" required
             class="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400">
-            <option value="">请选择...</option>
-            <optgroup label="收入">
-              <option value="营业收入">营业收入</option>
-              <option value="营业外收入">营业外收入</option>
-              <option value="其他收入">其他收入</option>
-            </optgroup>
-            <optgroup label="支出">
-              <option value="采购成本">采购成本</option>
-              <option value="人力成本">人力成本</option>
-              <option value="办公费">办公费</option>
-              <option value="业务招待费">业务招待费</option>
-              <option value="税费">税费</option>
-              <option value="其他支出">其他支出</option>
-            </optgroup>
           </select>
         </div>
 
@@ -2292,6 +2278,32 @@ function renderTxRow(t) {
 // ================================================================
 // 新增流水
 // ================================================================
+const CATEGORIES = {
+  income: ['营业收入', '营业外收入', '其他收入'],
+  expense: ['采购成本', '人力成本', '办公费', '业务招待费', '税费', '其他支出']
+};
+
+function populateCategories(txType) {
+  const sel = document.getElementById('tx-category');
+  const cats = CATEGORIES[txType] || [];
+  sel.innerHTML = '<option value="">请选择...</option>' +
+    cats.map(c => `<option value="${c}">${c}</option>`).join('');
+}
+
+function setTxType(type) {
+  document.getElementById('tx-type').value = type;
+  const btnI = document.getElementById('btn-income');
+  const btnE = document.getElementById('btn-expense');
+  if (type === 'income') {
+    btnI.className = 'flex-1 btn-touch py-2.5 rounded-lg text-sm font-medium border-2 border-green-400 text-green-600 bg-green-50 transition-all';
+    btnE.className = 'flex-1 btn-touch py-2.5 rounded-lg text-sm font-medium border-2 border-gray-200 text-gray-400 transition-all';
+  } else {
+    btnI.className = 'flex-1 btn-touch py-2.5 rounded-lg text-sm font-medium border-2 border-gray-200 text-gray-400 transition-all';
+    btnE.className = 'flex-1 btn-touch py-2.5 rounded-lg text-sm font-medium border-2 border-red-400 text-red-600 bg-red-50 transition-all';
+  }
+  populateCategories(type);
+}
+
 function openAddModal(prefill = null) {
   document.getElementById('modal-tx-title').textContent = '新增记录';
   document.getElementById('form-tx').reset();
@@ -2318,30 +2330,17 @@ function openAddModal(prefill = null) {
     allAccounts.map(a => `<option value="${a.id}">${escHtml(a.account_name)}</option>`).join('');
 
   if (prefill) {
+    if (prefill.tx_type)    setTxType(prefill.tx_type);
     if (prefill.account_id) sel.value = prefill.account_id;
     if (prefill.category)   document.getElementById('tx-category').value = prefill.category;
     if (prefill.counterparty) document.getElementById('tx-counterparty').value = prefill.counterparty;
     if (prefill.description) document.getElementById('tx-description').value = prefill.description;
-    if (prefill.tx_type)    setTxType(prefill.tx_type);
     if (prefill.modal_title) document.getElementById('modal-tx-title').textContent = prefill.modal_title;
   } else {
     setTxType('income');
   }
 
   openModal('modal-tx');
-}
-
-function setTxType(type) {
-  document.getElementById('tx-type').value = type;
-  const btnI = document.getElementById('btn-income');
-  const btnE = document.getElementById('btn-expense');
-  if (type === 'income') {
-    btnI.className = 'flex-1 btn-touch py-2.5 rounded-lg text-sm font-medium border-2 border-green-400 text-green-600 bg-green-50 transition-all';
-    btnE.className = 'flex-1 btn-touch py-2.5 rounded-lg text-sm font-medium border-2 border-gray-200 text-gray-400 transition-all';
-  } else {
-    btnI.className = 'flex-1 btn-touch py-2.5 rounded-lg text-sm font-medium border-2 border-gray-200 text-gray-400 transition-all';
-    btnE.className = 'flex-1 btn-touch py-2.5 rounded-lg text-sm font-medium border-2 border-red-400 text-red-600 bg-red-50 transition-all';
-  }
 }
 
 async function submitTransaction(e) {
