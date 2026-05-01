@@ -1940,7 +1940,18 @@ async function loadTransactions() {
   if (dateTo)           query = query.lte('transaction_date', dateTo);
   if (counterparty) {
     // 同时搜索 交易对方 和 关联账户名称
-    query = query.or(`counterparty.ilike.%${counterparty}%,accounts.account_name.ilike.%${counterparty}%`);
+    // Supabase .or() 不支持关联表字段，需先查 accounts 拿 ID
+    let orClause = `counterparty.ilike.%${counterparty}%`;
+    try {
+      const { data: accts } = await sb.from('accounts')
+        .select('id')
+        .ilike('account_name', `%${counterparty}%`);
+      if (accts && accts.length > 0) {
+        const ids = accts.map(a => a.id).join(',');
+        orClause += `,account_id.in.(${ids})`;
+      }
+    } catch(e) { /* 忽略，继续只搜 counterparty */ }
+    query = query.or(orClause);
   }
   if (amountMin)        query = query.gte('amount', parseFloat(amountMin));
   if (amountMax)        query = query.lte('amount', parseFloat(amountMax));
