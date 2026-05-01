@@ -2204,16 +2204,19 @@ function renderTxRow(t) {
             凭证${t.receipt_urls && t.receipt_urls.length ? `(${t.receipt_urls.length})` : ''}
           </button>
         ` : ''}
-        ${t.receipt_urls && t.receipt_urls.length ? `
-          <div class="flex gap-0.5 mt-1">
-            ${t.receipt_urls.slice(0,3).map(url => `
-              <img src="${escHtml(url)}" class="w-7 h-7 object-cover rounded border cursor-pointer hover:opacity-80" onclick="openImageViewer('${escHtml(url)}')" />
-            `).join('')}
-            ${t.receipt_urls.length > 3 ? `<span class="text-[10px] text-gray-400 self-end">+${t.receipt_urls.length-3}</span>` : ''}
-          </div>
-        ` : ''}
       </td>
     </tr>
+    ${t.receipt_urls && t.receipt_urls.length ? `
+    <tr class="${cls}">
+      <td colspan="10" class="px-3 pb-2">
+        <div class="flex gap-1 flex-wrap">
+          ${t.receipt_urls.map(url => `
+            <img src="${escHtml(url)}" class="w-10 h-10 object-cover rounded border cursor-pointer hover:opacity-80" onclick="openImageViewer('${escHtml(url)}')" />
+          `).join('')}
+        </div>
+      </td>
+    </tr>
+    ` : ''}
   `;
 }
 
