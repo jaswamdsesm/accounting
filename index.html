@@ -768,6 +768,11 @@ document.addEventListener('DOMContentLoaded', initCustomDatePickers);
           class="border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
           <option value="">全部账户</option>
         </select>
+        <!-- 排序按钮 -->
+        <button id="btn-sort" onclick="toggleSort()"
+          class="btn-touch px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-xs font-medium transition-colors">
+          排序 <span id="sort-icon">↓</span>
+        </button>
         <input type="number" id="filter-amount-min" placeholder="最小金额" oninput="debounceSearch()"
           class="border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 w-20 md:w-24" />
         <span class="text-gray-300">~</span>
@@ -1645,7 +1650,7 @@ function switchPage(page) {
 
   // 按需加载
   if (page === 'dashboard')    loadDashboard();
-  if (page === 'transactions') { txPage = 1; accountFilterId = null; accountFilterName = null; populateFilterAccounts(); loadTransactions(); }
+  if (page === 'transactions') { txPage = 1; accountFilterId = null; accountFilterName = null; populateFilterAccounts(); loadTransactions(); initCustomSelects(); }
   if (page === 'accounts')     loadAccountsPage();
   if (page === 'audit')        loadAuditLogs();
   if (page === 'approvals')    loadApprovals();
@@ -1757,6 +1762,8 @@ function populateFilterAccounts() {
   sel.innerHTML = '<option value="">全部账户</option>' +
     allAccounts.map(a => `<option value="${a.id}">${escHtml(a.account_name)}</option>`).join('');
   if (currentVal) sel.value = currentVal;
+  // 确保三个筛选下拉都被 CustomSelect 接管（处理动态填充 option 的情况）
+  initCustomSelects();
 }
 
 async function loadTransactions() {
@@ -1881,6 +1888,22 @@ function sortBy(col) {
   if (txSortCol === col) txSortAsc = !txSortAsc;
   else { txSortCol = col; txSortAsc = false; }
   // 更新箭头
+  ['serial_no','transaction_date','amount'].forEach(c => {
+    const el = document.getElementById('sort-' + c);
+    if (el) el.textContent = c === txSortCol ? (txSortAsc ? '↑' : '↓') : '';
+  });
+  // 同步更新排序按钮图标
+  const btnIcon = document.getElementById('sort-icon');
+  if (btnIcon) btnIcon.textContent = txSortAsc ? '↑' : '↓';
+  loadTransactions();
+}
+
+// 排序按钮：切换升序/降序（按当前排序列）
+function toggleSort() {
+  txSortAsc = !txSortAsc;
+  const icon = document.getElementById('sort-icon');
+  if (icon) icon.textContent = txSortAsc ? '↑' : '↓';
+  // 同步更新表头箭头
   ['serial_no','transaction_date','amount'].forEach(c => {
     const el = document.getElementById('sort-' + c);
     if (el) el.textContent = c === txSortCol ? (txSortAsc ? '↑' : '↓') : '';
