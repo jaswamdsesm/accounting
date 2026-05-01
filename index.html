@@ -1274,9 +1274,13 @@ document.addEventListener('DOMContentLoaded', initCustomDatePickers);
         </button>
       </div>
       <div>
-        <div class="border-2 border-dashed border-gray-200 rounded-lg p-4 text-center text-sm text-gray-400 cursor-pointer hover:border-blue-300 hover:text-blue-400 transition-colors"
-          onclick="document.getElementById('import-file').click()">
-          <span>点击选择 Excel / CSV 文件</span>
+        <div id="import-drop-zone"
+          class="border-2 border-dashed border-gray-200 rounded-lg p-4 text-center text-sm text-gray-400 cursor-pointer hover:border-blue-300 hover:text-blue-400 transition-colors"
+          onclick="document.getElementById('import-file').click()"
+          ondragover="event.preventDefault(); this.classList.add('border-blue-400','bg-blue-50','text-blue-500');"
+          ondragleave="this.classList.remove('border-blue-400','bg-blue-50','text-blue-500');"
+          ondrop="event.preventDefault(); this.classList.remove('border-blue-400','bg-blue-50','text-blue-500'); handleDrop(event);">
+          <span>点击选择或拖入 Excel / CSV 文件</span>
           <input type="file" id="import-file" accept=".xlsx,.csv" class="hidden" onchange="handleImportFile(event)" />
         </div>
         <p id="import-file-name" class="text-xs text-gray-400 mt-1"></p>
@@ -2589,8 +2593,15 @@ function downloadImportTemplate() {
   XLSX.writeFile(wb, '账单导入模板.xlsx');
 }
 
-async function handleImportFile(e) {
-  const file = e.target.files[0];
+// 拖入文件处理
+function handleDrop(e) {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  if (file) handleImportFile(file);
+}
+
+async function handleImportFile(input) {
+  const file = input instanceof File ? input : (input.target.files[0]);
   if (!file) return;
 
   document.getElementById('import-file-name').textContent = file.name;
