@@ -2334,11 +2334,24 @@ async function submitTransaction(e) {
       creator_id:   currentUser.id,
       creator_name: currentUser.name,
       serial_no:    '',   // 触发器自动生成
-      receipt_urls: receiptUrls.length ? receiptUrls : null,
+      // 注意：receipt_urls 不在这里写，insert 后通过 RPC 追加（绕过 RLS）
     };
 
-    const { error } = await sb.from('transactions').insert(payload);
+    // insert 后 select('id') 拿到新记录 ID
+    const { data: inserted, error } = await sb
+      .from('transactions')
+      .insert(payload)
+      .select('id');
     if (error) throw error;
+
+    // 通过 RPC 追加凭证 URL（绕过 RLS）
+    if (receiptUrls.length && inserted && inserted[0]) {
+      const newId = inserted[0].id;
+      for (const url of receiptUrls) {
+        const { error: rpcErr } = await sb.rpc('attach_receipt', { tx_id: newId, new_url: url });
+        if (rpcErr) throw rpcErr;
+      }
+    }
 
     showToast('记录已保存', 'success');
     closeModal('modal-tx');
@@ -3639,22 +3652,9 @@ async function uploadReceiptAndAttach(txId, file) {
     const { data: urlData } = sb.storage.from('attachments').getPublicUrl(path);
     const newUrl = urlData.publicUrl;
 
-    // 读取已有 receipt_urls，追加新 URL
-    const { data: txData, error: readErr } = await sb
-      .from('transactions')
-      .select('receipt_urls')
-      .eq('id', txId)
-      .single();
-    if (readErr) throw readErr;
-
-    const oldUrls = Array.isArray(txData.receipt_urls) ? txData.receipt_urls : [];
-    const updatedUrls = [...oldUrls, newUrl];
-
-    const { error: updErr } = await sb
-      .from('transactions')
-      .update({ receipt_urls: updatedUrls })
-      .eq('id', txId);
-    if (updErr) throw updErr;
+    // 通过 RPC 绕过 RLS 追加 receipt_url
+    const { error: rpcErr } = await sb.rpc('attach_receipt', { tx_id: txId, new_url: newUrl });
+    if (rpcErr) throw rpcErr;
 
     showToast('凭证已上传', 'success');
     loadTransactions();
