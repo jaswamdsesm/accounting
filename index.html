@@ -999,10 +999,10 @@ document.addEventListener('DOMContentLoaded', initCustomDatePickers);
 <!-- ============================================================
      新增/编辑流水 模态框
 ============================================================ -->
-<div id="modal-tx" class="fixed inset-0 hidden modal-backdrop bg-black/30" style="z-index:60">
-  <!-- 移动端：fixed 全屏内部滚动；电脑端：fixed 居中 -->
+<div id="modal-tx" class="fixed inset-0 hidden modal-backdrop bg-black/30 md:flex md:items-center md:justify-center" style="z-index:60">
+  <!-- 移动端：fixed 底部抽屉；电脑端：flex 居中（不用 transform 避免 backdrop-filter 造成模糊） -->
   <div id="modal-tx-panel" class="fixed inset-x-0 bottom-0
-              md:fixed md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:mx-auto md:my-8 md:max-w-2xl
+              md:static md:inset-auto md:w-full md:max-w-2xl md:mx-auto
               bg-white rounded-t-2xl md:rounded-2xl shadow-2xl
               max-h-[95vh] md:max-h-[90vh] overflow-y-auto">
 
