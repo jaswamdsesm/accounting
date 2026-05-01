@@ -2198,15 +2198,27 @@ function renderTxCard(t) {
             </button>
           ` : ''}
           ${!isLocked && canBookkeep() ? `
-            <button onclick="triggerReceiptUpload('${t.id}')"
-              class="btn-touch text-xs px-3 py-1.5 rounded-lg bg-green-50 text-green-600 border border-green-200 min-h-[44px]">
-              上传凭证
+            ${(t.receipt_urls && t.receipt_urls.length) ? `
+              <button onclick="openReceiptViewer('${t.id}', '${escHtml(t.counterparty || '')}')"
+                class="btn-touch text-xs px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 min-h-[44px]">
+                查看凭证
+              </button>
+              <button onclick="triggerReceiptUpload('${t.id}')"
+                class="btn-touch text-xs px-3 py-1.5 rounded-lg bg-green-50 text-green-600 border border-green-200 min-h-[44px]">
+                继续上传
+              </button>
+            ` : `
+              <button onclick="triggerReceiptUpload('${t.id}')"
+                class="btn-touch text-xs px-3 py-1.5 rounded-lg bg-green-50 text-green-600 border border-green-200 min-h-[44px]">
+                上传凭证
+              </button>
+            `}
+          ` : `
+            <button onclick="openReceiptViewer('${t.id}', '${escHtml(t.counterparty || '')}')"
+              class="btn-touch text-xs px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 min-h-[44px]">
+              查看凭证
             </button>
-          ` : ''}
-          <button onclick="openReceiptViewer('${t.id}', '${escHtml(t.counterparty || '')}')"
-            class="btn-touch text-xs px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 min-h-[44px]">
-            查看凭证
-          </button>
+          `}
           ${isLocked ? `<span class="text-[10px] text-gray-400 self-center inline-flex items-center gap-0.5"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>已锁定</span>` : ''}
         </div>
       </div>
@@ -2267,15 +2279,27 @@ function renderTxRow(t) {
           </button>
         ` : ''}
         ${!isLocked && canBookkeep() ? `
-          <button onclick="triggerReceiptUpload('${t.id}')"
-            class="text-xs px-2 py-1 rounded text-green-600 hover:bg-green-50 border border-transparent hover:border-green-200 transition-colors">
-            上传凭证
+          ${(t.receipt_urls && t.receipt_urls.length) ? `
+            <button onclick="openReceiptViewer('${t.id}', '${escHtml(t.counterparty || '')}')"
+              class="text-xs px-2 py-1 rounded text-blue-600 hover:bg-blue-50 border border-transparent hover:border-blue-200 transition-colors">
+              查看凭证
+            </button>
+            <button onclick="triggerReceiptUpload('${t.id}')"
+              class="text-xs px-2 py-1 rounded text-green-600 hover:bg-green-50 border border-transparent hover:border-green-200 transition-colors">
+              继续上传
+            </button>
+          ` : `
+            <button onclick="triggerReceiptUpload('${t.id}')"
+              class="text-xs px-2 py-1 rounded text-green-600 hover:bg-green-50 border border-transparent hover:border-green-200 transition-colors">
+              上传凭证
+            </button>
+          `}
+        ` : `
+          <button onclick="openReceiptViewer('${t.id}', '${escHtml(t.counterparty || '')}')"
+            class="text-xs px-2 py-1 rounded text-blue-600 hover:bg-blue-50 border border-transparent hover:border-blue-200 transition-colors">
+            查看凭证
           </button>
-        ` : ''}
-        <button onclick="openReceiptViewer('${t.id}', '${escHtml(t.counterparty || '')}')"
-          class="text-xs px-2 py-1 rounded text-blue-600 hover:bg-blue-50 border border-transparent hover:border-blue-200 transition-colors ${canBookkeep() ? 'ml-1' : ''}">
-          查看凭证
-        </button>
+        `}
       </td>
     </tr>
   `;
