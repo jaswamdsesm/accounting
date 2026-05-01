@@ -1460,63 +1460,63 @@ document.addEventListener('DOMContentLoaded', initCustomDatePickers);
 
 <!-- 上传凭证弹窗（桌面端/已有记录用，含内嵌裁切器） -->
 <div id="modal-upload-receipt" class="fixed inset-0 hidden modal-backdrop bg-black/30" style="z-index:70">
-  <div class="absolute inset-x-4 top-[5%] md:relative md:inset-auto md:mx-auto md:my-4 md:max-w-3xl
-              bg-white rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+  <div id="upload-receipt-panel"
+       class="absolute inset-x-4 top-[20%] md:relative md:inset-auto md:mx-auto md:my-auto
+              bg-white rounded-2xl shadow-2xl transition-all duration-200
+              md:max-w-md md:w-full"
+       style="max-height:80vh">
     <!-- 顶部标题栏 -->
-    <div class="sticky top-0 bg-white px-5 py-4 border-b border-gray-100 flex items-center justify-between rounded-t-2xl z-10">
-      <h3 class="font-bold" id="upload-receipt-title">上传凭证</h3>
-      <button onclick="closeUploadReceiptModal()" class="text-gray-400 hover:text-gray-600 text-2xl w-8 h-8 flex items-center justify-center">×</button>
+    <div class="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+      <h3 class="font-bold text-base" id="upload-receipt-title">上传凭证</h3>
+      <button onclick="closeUploadReceiptModal()" class="text-gray-400 hover:text-gray-600 text-xl w-7 h-7 flex items-center justify-center">×</button>
     </div>
-    <div class="p-5">
+    <div class="p-4">
       <!-- 视图1：拖拽上传区 + 预览列表 + 上传按钮 -->
       <div id="receipt-upload-view">
         <div id="upload-receipt-area"
-             class="border-2 border-dashed border-gray-200 rounded-lg p-8 text-center text-sm text-gray-400 cursor-pointer hover:border-blue-300 hover:text-blue-400 transition-colors"
+             class="border-2 border-dashed border-gray-200 rounded-lg p-6 text-center text-sm text-gray-400 cursor-pointer hover:border-blue-300 hover:text-blue-400 transition-colors"
              onclick="document.getElementById('receipt-file-input').click()"
              ondragover="event.preventDefault(); this.classList.add('drag-over')"
              ondragleave="this.classList.remove('drag-over')"
              ondrop="event.preventDefault(); this.classList.remove('drag-over'); handleReceiptDrop(event)">
-          <svg class="w-10 h-10 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"/><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z"/></svg>
-          <span>点击、拖拽或粘贴图片（Ctrl+V）上传</span>
+          <svg class="w-8 h-8 mx-auto mb-1.5 text-gray-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"/><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z"/></svg>
+          <span>点击、拖拽或粘贴图片</span>
           <input type="file" id="receipt-file-input" multiple accept="image/*" class="hidden" onchange="handleReceiptFileSelect(event)" />
         </div>
-        <div id="receipt-file-preview" class="flex flex-wrap gap-3 mt-3"></div>
-        <div class="flex justify-end gap-3 mt-5">
-          <button onclick="closeUploadReceiptModal()" class="px-4 py-2 rounded-lg text-sm text-gray-500 hover:bg-gray-100 transition-colors">取消</button>
-          <button id="btn-upload-receipt" onclick="doUploadReceipt()" class="btn-touch px-4 py-2 rounded-lg text-sm text-white bg-blue-500 hover:bg-blue-600 transition-colors disabled:opacity-50" disabled>上传</button>
+        <div id="receipt-file-preview" class="flex flex-wrap gap-2 mt-2"></div>
+        <div class="flex justify-end gap-2 mt-4">
+          <button onclick="closeUploadReceiptModal()" class="px-3 py-1.5 rounded-lg text-sm text-gray-500 hover:bg-gray-100 transition-colors">取消</button>
+          <button id="btn-upload-receipt" onclick="doUploadReceipt()" class="btn-touch px-4 py-1.5 rounded-lg text-sm text-white bg-blue-500 hover:bg-blue-600 transition-colors disabled:opacity-50" disabled>上传</button>
         </div>
       </div>
       <!-- 视图2：内嵌裁切器 -->
       <div id="receipt-crop-view" class="hidden">
-        <div class="relative bg-gray-100 rounded-lg overflow-hidden" style="max-height:55vh">
+        <div class="relative bg-gray-100 rounded-lg overflow-hidden" style="max-height:50vh">
           <canvas id="crop-canvas-rc" class="block mx-auto max-w-full"></canvas>
         </div>
-        <div class="flex items-center justify-between mt-4 gap-2 flex-wrap">
+        <div class="flex items-center justify-between mt-3 gap-2 flex-wrap">
           <div class="flex items-center gap-2 text-sm">
-            <label class="text-xs text-gray-500">输出尺寸：</label>
             <select id="crop-preset-rc" onchange="applyCropPresetRC()"
-              class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm bg-white focus:outline-none">
-              <option value="auto">自动（原始比例）</option>
-              <option value="1:1">1:1 正方形</option>
-              <option value="4:3">4:3 横版</option>
-              <option value="3:4">3:4 竖版</option>
-              <option value="16:9">16:9 宽屏</option>
+              class="border border-gray-200 rounded-lg px-2 py-1 text-sm bg-white focus:outline-none">
+              <option value="auto">自动</option>
+              <option value="1:1">1:1</option>
+              <option value="4:3">4:3</option>
+              <option value="3:4">3:4</option>
+              <option value="16:9">16:9</option>
             </select>
-            <label class="text-xs text-gray-500 ml-2">质量：</label>
-            <select id="crop-quality-rc" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm bg-white focus:outline-none">
-              <option value="0.8">标准 (80%)</option>
-              <option value="0.9" selected>高清 (90%)</option>
-              <option value="0.95">超清 (95%)</option>
+            <select id="crop-quality-rc" class="border border-gray-200 rounded-lg px-2 py-1 text-sm bg-white focus:outline-none">
+              <option value="0.8">80%</option>
+              <option value="0.9" selected>90%</option>
+              <option value="0.95">95%</option>
             </select>
           </div>
           <div class="flex gap-2">
             <button onclick="cancelReceiptCrop()"
-              class="btn-touch px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-500 hover:bg-gray-50">取消</button>
+              class="btn-touch px-3 py-1.5 rounded-lg border border-gray-200 text-sm text-gray-500 hover:bg-gray-50">取消</button>
             <button onclick="confirmReceiptCrop()"
-              class="btn-touch px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium">确认裁切</button>
+              class="btn-touch px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium">确认裁切</button>
           </div>
         </div>
-        <p class="text-[10px] text-gray-300 mt-2">在图片上拖拽选择裁切区域，拖拽边角调整大小，拖拽内部移动位置</p>
       </div>
     </div>
   </div>
@@ -3924,6 +3924,8 @@ function openReceiptCropper(file) {
     // 切换到裁切视图
     document.getElementById('receipt-upload-view').classList.add('hidden');
     document.getElementById('receipt-crop-view').classList.remove('hidden');
+    document.getElementById('upload-receipt-panel').classList.remove('md:max-w-md');
+    document.getElementById('upload-receipt-panel').classList.add('md:max-w-3xl');
 
     requestAnimationFrame(() => {
       const container = document.getElementById('crop-canvas-rc').parentElement;
@@ -4147,6 +4149,8 @@ function cancelReceiptCrop() {
   // 切回上传视图
   document.getElementById('receipt-crop-view').classList.add('hidden');
   document.getElementById('receipt-upload-view').classList.remove('hidden');
+  document.getElementById('upload-receipt-panel').classList.remove('md:max-w-3xl');
+  document.getElementById('upload-receipt-panel').classList.add('md:max-w-md');
 }
 
 function confirmReceiptCrop() {
@@ -4187,6 +4191,8 @@ function confirmReceiptCrop() {
     canvas.onpointerdown = canvas.onpointermove = canvas.onpointerup = canvas.onpointercancel = null;
     document.getElementById('receipt-crop-view').classList.add('hidden');
     document.getElementById('receipt-upload-view').classList.remove('hidden');
+    document.getElementById('upload-receipt-panel').classList.remove('md:max-w-3xl');
+    document.getElementById('upload-receipt-panel').classList.add('md:max-w-md');
     renderReceiptFilePreview();
     showToast('图片已裁切，可继续添加或点击上传', 'success');
   }, 'image/jpeg', quality);
@@ -4208,11 +4214,8 @@ async function doUploadReceipt() {
       if (rpcErr) throw rpcErr;
     }
     showToast(`已上传 ${receiptPendingFiles.length} 张凭证`, 'success');
-    closeModal('modal-upload-receipt');
-    receiptPendingFiles.forEach(item => { if (item.previewUrl) URL.revokeObjectURL(item.previewUrl); });
-    receiptPendingFiles = [];
-    receiptUploadTxId = null;
     loadTransactions();
+    closeUploadReceiptModal();
   } catch (err) {
     showToast('上传失败：' + err.message, 'error');
     btn.disabled = false;
