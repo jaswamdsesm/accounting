@@ -1263,10 +1263,15 @@ document.addEventListener('DOMContentLoaded', initCustomDatePickers);
      审批投票 模态框
 ============================================================ -->
 <div id="modal-vote" class="fixed inset-0 hidden modal-backdrop bg-black/30" style="z-index:60">
-  <div class="absolute inset-x-4 top-[15%] md:relative md:inset-auto md:mx-auto md:my-8 md:max-w-md
-              bg-white rounded-2xl shadow-2xl p-5">
-    <h3 class="font-bold mb-2">审批投票</h3>
-    <div id="vote-info" class="text-sm text-gray-600 mb-4"></div>
+  <div class="absolute inset-x-0 bottom-0 md:relative md:inset-auto md:mx-auto md:my-auto md:max-w-sm
+              bg-white rounded-t-2xl md:rounded-2xl shadow-2xl p-5">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="font-bold">审批投票</h3>
+      <button onclick="closeModal('modal-vote')" class="text-gray-400 hover:text-gray-600 p-1">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div id="vote-info" class="text-sm text-gray-600 mb-4 line-clamp-3"></div>
     <input type="hidden" id="vote-approval-id" />
     <div class="flex gap-3">
       <button onclick="castVote('reject')"
