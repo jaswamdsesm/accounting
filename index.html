@@ -1458,28 +1458,66 @@ document.addEventListener('DOMContentLoaded', initCustomDatePickers);
   </div>
 </div>
 
-<!-- 上传凭证弹窗（桌面端/已有记录用） -->
+<!-- 上传凭证弹窗（桌面端/已有记录用，含内嵌裁切器） -->
 <div id="modal-upload-receipt" class="fixed inset-0 hidden modal-backdrop bg-black/30" style="z-index:70">
-  <div class="absolute inset-x-4 top-[15%] md:relative md:inset-auto md:mx-auto md:my-8 md:max-w-md
-              bg-white rounded-2xl shadow-2xl p-5">
-    <div class="flex items-center justify-between mb-4">
-      <h3 class="font-bold text-lg" id="upload-receipt-title">上传凭证</h3>
-      <button onclick="closeModal('modal-upload-receipt')" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+  <div class="absolute inset-x-4 top-[5%] md:relative md:inset-auto md:mx-auto md:my-4 md:max-w-3xl
+              bg-white rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+    <!-- 顶部标题栏 -->
+    <div class="sticky top-0 bg-white px-5 py-4 border-b border-gray-100 flex items-center justify-between rounded-t-2xl z-10">
+      <h3 class="font-bold" id="upload-receipt-title">上传凭证</h3>
+      <button onclick="closeUploadReceiptModal()" class="text-gray-400 hover:text-gray-600 text-2xl w-8 h-8 flex items-center justify-center">×</button>
     </div>
-    <div id="upload-receipt-area"
-         class="border-2 border-dashed border-gray-200 rounded-lg p-8 text-center text-sm text-gray-400 cursor-pointer hover:border-blue-300 hover:text-blue-400 transition-colors"
-         onclick="document.getElementById('receipt-file-input').click()"
-         ondragover="event.preventDefault(); this.classList.add('drag-over')"
-         ondragleave="this.classList.remove('drag-over')"
-         ondrop="event.preventDefault(); this.classList.remove('drag-over'); handleReceiptDrop(event)">
-      <svg class="w-10 h-10 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"/><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z"/></svg>
-      <span>点击、拖拽或粘贴图片（Ctrl+V）上传</span>
-      <input type="file" id="receipt-file-input" multiple accept="image/*" class="hidden" onchange="handleReceiptFileSelect(event)" />
-    </div>
-    <div id="receipt-file-preview" class="flex flex-wrap gap-3 mt-3"></div>
-    <div class="flex justify-end gap-3 mt-5">
-      <button onclick="closeUploadReceiptModal()" class="px-4 py-2 rounded-lg text-sm text-gray-500 hover:bg-gray-100 transition-colors">取消</button>
-      <button id="btn-upload-receipt" onclick="doUploadReceipt()" class="px-4 py-2 rounded-lg text-sm text-white bg-blue-500 hover:bg-blue-600 transition-colors disabled:opacity-50" disabled>上传</button>
+    <div class="p-5">
+      <!-- 视图1：拖拽上传区 + 预览列表 + 上传按钮 -->
+      <div id="receipt-upload-view">
+        <div id="upload-receipt-area"
+             class="border-2 border-dashed border-gray-200 rounded-lg p-8 text-center text-sm text-gray-400 cursor-pointer hover:border-blue-300 hover:text-blue-400 transition-colors"
+             onclick="document.getElementById('receipt-file-input').click()"
+             ondragover="event.preventDefault(); this.classList.add('drag-over')"
+             ondragleave="this.classList.remove('drag-over')"
+             ondrop="event.preventDefault(); this.classList.remove('drag-over'); handleReceiptDrop(event)">
+          <svg class="w-10 h-10 mx-auto mb-2 text-gray-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"/><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z"/></svg>
+          <span>点击、拖拽或粘贴图片（Ctrl+V）上传</span>
+          <input type="file" id="receipt-file-input" multiple accept="image/*" class="hidden" onchange="handleReceiptFileSelect(event)" />
+        </div>
+        <div id="receipt-file-preview" class="flex flex-wrap gap-3 mt-3"></div>
+        <div class="flex justify-end gap-3 mt-5">
+          <button onclick="closeUploadReceiptModal()" class="px-4 py-2 rounded-lg text-sm text-gray-500 hover:bg-gray-100 transition-colors">取消</button>
+          <button id="btn-upload-receipt" onclick="doUploadReceipt()" class="btn-touch px-4 py-2 rounded-lg text-sm text-white bg-blue-500 hover:bg-blue-600 transition-colors disabled:opacity-50" disabled>上传</button>
+        </div>
+      </div>
+      <!-- 视图2：内嵌裁切器 -->
+      <div id="receipt-crop-view" class="hidden">
+        <div class="relative bg-gray-100 rounded-lg overflow-hidden" style="max-height:55vh">
+          <canvas id="crop-canvas-rc" class="block mx-auto max-w-full"></canvas>
+        </div>
+        <div class="flex items-center justify-between mt-4 gap-2 flex-wrap">
+          <div class="flex items-center gap-2 text-sm">
+            <label class="text-xs text-gray-500">输出尺寸：</label>
+            <select id="crop-preset-rc" onchange="applyCropPresetRC()"
+              class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm bg-white focus:outline-none">
+              <option value="auto">自动（原始比例）</option>
+              <option value="1:1">1:1 正方形</option>
+              <option value="4:3">4:3 横版</option>
+              <option value="3:4">3:4 竖版</option>
+              <option value="16:9">16:9 宽屏</option>
+            </select>
+            <label class="text-xs text-gray-500 ml-2">质量：</label>
+            <select id="crop-quality-rc" class="border border-gray-200 rounded-lg px-2 py-1.5 text-sm bg-white focus:outline-none">
+              <option value="0.8">标准 (80%)</option>
+              <option value="0.9" selected>高清 (90%)</option>
+              <option value="0.95">超清 (95%)</option>
+            </select>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="cancelReceiptCrop()"
+              class="btn-touch px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-500 hover:bg-gray-50">取消</button>
+            <button onclick="confirmReceiptCrop()"
+              class="btn-touch px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium">确认裁切</button>
+          </div>
+        </div>
+        <p class="text-[10px] text-gray-300 mt-2">在图片上拖拽选择裁切区域，拖拽边角调整大小，拖拽内部移动位置</p>
+      </div>
     </div>
   </div>
 </div>
@@ -3350,9 +3388,9 @@ function setupPasteDrop() {
     e.preventDefault();
 
     if (isUploadOpen) {
-      // 上传凭证弹窗模式：走裁切流程
+      // 上传凭证弹窗模式：走内嵌裁切流程
       if (imageFiles.length > 1) showToast(`已处理第一张，共 ${imageFiles.length} 张，请逐次粘贴`, 'info');
-      openCropper(imageFiles[0]);
+      openReceiptCropper(imageFiles[0]);
       return;
     }
 
@@ -3670,20 +3708,10 @@ function confirmCrop() {
   outCanvas.toBlob(async (blob) => {
     if (!blob) { showToast('裁切失败', 'error'); return; }
     const croppedFile = new File([blob], fileName, { type: 'image/jpeg' });
-
-    if (receiptUploadTxId) {
-      // 模式：上传凭证弹窗，裁切后加入预览列表
-      const previewUrl = URL.createObjectURL(blob);
-      receiptPendingFiles.push({ file: croppedFile, previewUrl });
-      renderReceiptFilePreview();
-      showToast('图片已裁切，可继续添加或点击上传', 'success');
-    } else {
-      // 模式：新增交易，暂存到 pendingFiles
-      const previewUrl = URL.createObjectURL(blob);
-      pendingFiles.push({ file: croppedFile, previewUrl });
-      renderFilePreview();
-      showToast('图片已裁切并压缩', 'success');
-    }
+    const previewUrl = URL.createObjectURL(blob);
+    pendingFiles.push({ file: croppedFile, previewUrl });
+    renderFilePreview();
+    showToast('图片已裁切并压缩', 'success');
     cancelCrop();
   }, 'image/jpeg', quality);
 }
@@ -3843,6 +3871,8 @@ function triggerReceiptUpload(txId) {
 let receiptPendingFiles = [];
 
 function closeUploadReceiptModal() {
+  // 如果正在裁切，先取消裁切
+  if (cropStateRC) cancelReceiptCrop();
   closeModal('modal-upload-receipt');
   receiptPendingFiles.forEach(item => { if (item.previewUrl) URL.revokeObjectURL(item.previewUrl); });
   receiptPendingFiles = [];
@@ -3851,13 +3881,13 @@ function closeUploadReceiptModal() {
 
 function handleReceiptFileSelect(e) {
   const files = Array.from(e.target.files);
-  files.forEach(f => { if (f.type.startsWith('image/')) openCropper(f); });
+  files.forEach(f => { if (f.type.startsWith('image/')) openReceiptCropper(f); });
   e.target.value = '';
 }
 
 function handleReceiptDrop(e) {
   const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
-  files.forEach(f => openCropper(f));
+  files.forEach(f => openReceiptCropper(f));
 }
 
 function renderReceiptFilePreview() {
@@ -3881,6 +3911,285 @@ function removeReceiptFile(index) {
   if (receiptPendingFiles[index].previewUrl) URL.revokeObjectURL(receiptPendingFiles[index].previewUrl);
   receiptPendingFiles.splice(index, 1);
   renderReceiptFilePreview();
+}
+
+// ================================================================
+// 内嵌裁切器（上传凭证弹窗专用，不弹新窗口）
+// ================================================================
+let cropStateRC = null;
+
+function openReceiptCropper(file) {
+  const img = new Image();
+  img.onload = () => {
+    // 切换到裁切视图
+    document.getElementById('receipt-upload-view').classList.add('hidden');
+    document.getElementById('receipt-crop-view').classList.remove('hidden');
+
+    requestAnimationFrame(() => {
+      const container = document.getElementById('crop-canvas-rc').parentElement;
+      const maxW = container.clientWidth - 8;
+      const maxH = window.innerHeight * 0.50;
+      const dpr = window.devicePixelRatio || 1;
+
+      let scale = Math.min(maxW / img.width, maxH / img.height, 1);
+      const displayW = Math.round(img.width * scale);
+      const displayH = Math.round(img.height * scale);
+
+      const canvas = document.getElementById('crop-canvas-rc');
+      canvas.width  = displayW * dpr;
+      canvas.height = displayH * dpr;
+      canvas.style.width  = displayW + 'px';
+      canvas.style.height = displayH + 'px';
+
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.drawImage(img, 0, 0, displayW, displayH);
+
+      const margin = 0.1;
+      const crop = {
+        x: Math.round(displayW * margin),
+        y: Math.round(displayH * margin),
+        w: Math.round(displayW * (1 - 2 * margin)),
+        h: Math.round(displayH * (1 - 2 * margin))
+      };
+
+      cropStateRC = {
+        img, canvas, ctx, crop,
+        displayW, displayH, dpr, scale,
+        fileName: file.name,
+        dragging: null,
+        dragStart: null,
+        dragCropStart: null
+      };
+
+      drawCropOverlayRC();
+      bindCropEventsRC();
+    });
+  };
+  img.onerror = () => showToast('图片加载失败，请重试', 'error');
+  img.src = URL.createObjectURL(file);
+}
+
+function drawCropOverlayRC() {
+  if (!cropStateRC) return;
+  const { ctx, crop, displayW, displayH, dpr, img } = cropStateRC;
+  const { x, y, w, h } = crop;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, displayW, displayH);
+  ctx.drawImage(img, 0, 0, displayW, displayH);
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillRect(0, 0, displayW, y);
+  ctx.fillRect(0, y + h, displayW, displayH - y - h);
+  ctx.fillRect(0, y, x, h);
+  ctx.fillRect(x + w, y, displayW - x - w, h);
+  ctx.strokeStyle = '#3b82f6';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x, y, w, h);
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+  ctx.lineWidth = 1;
+  for (let i = 1; i <= 2; i++) {
+    ctx.beginPath(); ctx.moveTo(x + w * i / 3, y); ctx.lineTo(x + w * i / 3, y + h); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, y + h * i / 3); ctx.lineTo(x + w, y + h * i / 3); ctx.stroke();
+  }
+  const handleSize = 12;
+  ctx.fillStyle = '#3b82f6';
+  [[x,y],[x+w,y],[x,y+h],[x+w,y+h]].forEach(([cx,cy]) => {
+    ctx.fillRect(cx - handleSize/2, cy - handleSize/2, handleSize, handleSize);
+  });
+  [[x+w/2,y],[x+w/2,y+h],[x,y+h/2],[x+w,y+h/2]].forEach(([cx,cy]) => {
+    ctx.fillRect(cx - handleSize/2, cy - handleSize/2, handleSize, handleSize);
+  });
+}
+
+function bindCropEventsRC() {
+  const canvas = cropStateRC.canvas;
+  canvas.onpointerdown = (e) => handlePointerDownRC(e);
+  canvas.onpointermove = (e) => handlePointerMoveRC(e);
+  canvas.onpointerup   = (e) => handlePointerUpRC(e);
+  canvas.onpointercancel = (e) => handlePointerUpRC(e);
+  canvas.style.touchAction = 'none';
+}
+
+function getCanvasPosRC(e) {
+  const canvas = cropStateRC.canvas;
+  const rect = canvas.getBoundingClientRect();
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  return { x: clientX - rect.left, y: clientY - rect.top };
+}
+
+function handlePointerDownRC(e) {
+  if (!cropStateRC) return;
+  const { x: mx, y: my } = getCanvasPosRC(e);
+  const { crop } = cropStateRC;
+  const hs = 18; // handle snap distance
+
+  // 检测是否点在角落把手
+  const corners = [
+    { name: 'tl', x: crop.x, y: crop.y },
+    { name: 'tr', x: crop.x + crop.w, y: crop.y },
+    { name: 'bl', x: crop.x, y: crop.y + crop.h },
+    { name: 'br', x: crop.x + crop.w, y: crop.y + crop.h },
+  ];
+  for (const c of corners) {
+    if (Math.abs(mx - c.x) < hs && Math.abs(my - c.y) < hs) {
+      cropStateRC.dragging = 'corner-' + c.name;
+      cropStateRC.dragStart = { x: mx, y: my };
+      cropStateRC.dragCropStart = { ...crop };
+      e.preventDefault(); return;
+    }
+  }
+  // 检测边中把手
+  const edges = [
+    { name: 't', x: crop.x + crop.w/2, y: crop.y },
+    { name: 'b', x: crop.x + crop.w/2, y: crop.y + crop.h },
+    { name: 'l', x: crop.x, y: crop.y + crop.h/2 },
+    { name: 'r', x: crop.x + crop.w, y: crop.y + crop.h/2 },
+  ];
+  for (const e2 of edges) {
+    if (Math.abs(mx - e2.x) < hs && Math.abs(my - e2.y) < hs) {
+      cropStateRC.dragging = 'edge-' + e2.name;
+      cropStateRC.dragStart = { x: mx, y: my };
+      cropStateRC.dragCropStart = { ...crop };
+      e.preventDefault(); return;
+    }
+  }
+  // 检测是否在裁切框内部（拖动）
+  if (mx >= crop.x && mx <= crop.x + crop.w && my >= crop.y && my <= crop.y + crop.h) {
+    cropStateRC.dragging = 'move';
+    cropStateRC.dragStart = { x: mx, y: my };
+    cropStateRC.dragCropStart = { ...crop };
+    e.preventDefault(); return;
+  }
+  // 点击空白区域：重新选择裁切框
+  const margin = 0.1;
+  const minSize = 30;
+  const newW = Math.max(cropStateRC.displayW * (1 - 2 * margin), minSize);
+  const newH = Math.max(cropStateRC.displayH * (1 - 2 * margin), minSize);
+  const newX = Math.round(Math.min(Math.max(mx - newW/2, 0), cropStateRC.displayW - newW));
+  const newY = Math.round(Math.min(Math.max(my - newH/2, 0), cropStateRC.displayH - newH));
+  cropStateRC.crop = { x: newX, y: newY, w: Math.round(newW), h: Math.round(newH) };
+  drawCropOverlayRC();
+}
+
+function handlePointerMoveRC(e) {
+  if (!cropStateRC || !cropStateRC.dragging) return;
+  e.preventDefault();
+  const { x: mx, y: my } = getCanvasPosRC(e);
+  const { dragStart, dragCropStart: cs, displayW, displayH } = cropStateRC;
+  const dx = mx - dragStart.x;
+  const dy = my - dragStart.y;
+  const crop = cropStateRC.crop;
+  const minSize = 30;
+
+  if (cropStateRC.dragging === 'move') {
+    crop.x = Math.round(Math.max(0, Math.min(displayW - crop.w, cs.x + dx)));
+    crop.y = Math.round(Math.max(0, Math.min(displayH - crop.h, cs.y + dy)));
+  } else if (cropStateRC.dragging === 'corner-tl') {
+    crop.x = Math.min(cs.x + dx, cs.x + cs.w - minSize);
+    crop.y = Math.min(cs.y + dy, cs.y + cs.h - minSize);
+    crop.w = cs.w + (cs.x - crop.x); crop.h = cs.h + (cs.y - crop.y);
+  } else if (cropStateRC.dragging === 'corner-tr') {
+    crop.y = Math.min(cs.y + dy, cs.y + cs.h - minSize);
+    crop.w = Math.max(minSize, cs.w + dx); crop.h = cs.h + (cs.y - crop.y);
+  } else if (cropStateRC.dragging === 'corner-bl') {
+    crop.x = Math.min(cs.x + dx, cs.x + cs.w - minSize);
+    crop.w = cs.w + (cs.x - crop.x); crop.h = Math.max(minSize, cs.h + dy);
+  } else if (cropStateRC.dragging === 'corner-br') {
+    crop.w = Math.max(minSize, cs.w + dx); crop.h = Math.max(minSize, cs.h + dy);
+  } else if (cropStateRC.dragging === 'edge-t') {
+    crop.y = Math.min(cs.y + dy, cs.y + cs.h - minSize);
+    crop.h = cs.h + (cs.y - crop.y);
+  } else if (cropStateRC.dragging === 'edge-b') {
+    crop.h = Math.max(minSize, cs.h + dy);
+  } else if (cropStateRC.dragging === 'edge-l') {
+    crop.x = Math.min(cs.x + dx, cs.x + cs.w - minSize);
+    crop.w = cs.w + (cs.x - crop.x);
+  } else if (cropStateRC.dragging === 'edge-r') {
+    crop.w = Math.max(minSize, cs.w + dx);
+  }
+  drawCropOverlayRC();
+}
+
+function handlePointerUpRC(e) {
+  if (cropStateRC) cropStateRC.dragging = null;
+}
+
+function applyCropPresetRC() {
+  if (!cropStateRC) return;
+  const val = document.getElementById('crop-preset-rc').value;
+  const { displayW, displayH, crop } = cropStateRC;
+  const minSize = 30;
+  if (val === 'auto') {
+    const margin = 0.1;
+    crop.x = Math.round(displayW * margin);
+    crop.y = Math.round(displayH * margin);
+    crop.w = Math.round(displayW * (1 - 2 * margin));
+    crop.h = Math.round(displayH * (1 - 2 * margin));
+  } else {
+    const [rw, rh] = val.split(':').map(Number);
+    const ratio = rw / rh;
+    let cropW = displayW * 0.8;
+    let cropH = cropW / ratio;
+    if (cropH > displayH * 0.8) { cropH = displayH * 0.8; cropW = cropH * ratio; }
+    crop.x = Math.round((displayW - cropW) / 2);
+    crop.y = Math.round((displayH - cropH) / 2);
+    crop.w = Math.round(cropW);
+    crop.h = Math.round(cropH);
+  }
+  drawCropOverlayRC();
+}
+
+function cancelReceiptCrop() {
+  cropStateRC = null;
+  const canvas = document.getElementById('crop-canvas-rc');
+  canvas.onpointerdown = canvas.onpointermove = canvas.onpointerup = canvas.onpointercancel = null;
+  // 切回上传视图
+  document.getElementById('receipt-crop-view').classList.add('hidden');
+  document.getElementById('receipt-upload-view').classList.remove('hidden');
+}
+
+function confirmReceiptCrop() {
+  if (!cropStateRC) return;
+
+  const { img, crop, scale, fileName } = cropStateRC;
+  const quality = parseFloat(document.getElementById('crop-quality-rc').value);
+
+  const srcX = crop.x / scale;
+  const srcY = crop.y / scale;
+  const srcW = crop.w / scale;
+  const srcH = crop.h / scale;
+
+  const maxOut = 2000;
+  let outW = srcW, outH = srcH;
+  if (outW > maxOut || outH > maxOut) {
+    const s = Math.min(maxOut / outW, maxOut / outH);
+    outW = Math.round(outW * s);
+    outH = Math.round(outH * s);
+  }
+
+  const outCanvas = document.createElement('canvas');
+  outCanvas.width = outW;
+  outCanvas.height = outH;
+  const outCtx = outCanvas.getContext('2d');
+  outCtx.imageSmoothingEnabled = true;
+  outCtx.imageSmoothingQuality = 'high';
+  outCtx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, outW, outH);
+
+  outCanvas.toBlob(async (blob) => {
+    if (!blob) { showToast('裁切失败', 'error'); return; }
+    const croppedFile = new File([blob], fileName, { type: 'image/jpeg' });
+    const previewUrl = URL.createObjectURL(blob);
+    receiptPendingFiles.push({ file: croppedFile, previewUrl });
+    // 清理裁切状态并切回上传视图
+    cropStateRC = null;
+    const canvas = document.getElementById('crop-canvas-rc');
+    canvas.onpointerdown = canvas.onpointermove = canvas.onpointerup = canvas.onpointercancel = null;
+    document.getElementById('receipt-crop-view').classList.add('hidden');
+    document.getElementById('receipt-upload-view').classList.remove('hidden');
+    renderReceiptFilePreview();
+    showToast('图片已裁切，可继续添加或点击上传', 'success');
+  }, 'image/jpeg', quality);
 }
 
 async function doUploadReceipt() {
