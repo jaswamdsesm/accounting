@@ -1577,6 +1577,7 @@ let reversalAmount = 0; // 冲销确认金额
 let isDarkMode = false;  // 夜间模式状态
 let accountFilterId = null;  // 账户筛选（从余额页跳转时使用）
 let accountFilterName = null;
+let approvalTimer = null;  // 审批中心自动刷新计时器
 
 // 收支备注模板
 const DESCRIPTION_TEMPLATES = [
@@ -1815,6 +1816,9 @@ function roleLabel(role) {
 function switchPage(page) {
   currentPage = page;
 
+  // 清除审批中心自动刷新计时器
+  if (approvalTimer) { clearInterval(approvalTimer); approvalTimer = null; }
+
   // 隐藏所有页面
   document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
   document.getElementById('page-' + page)?.classList.remove('hidden');
@@ -1832,9 +1836,17 @@ function switchPage(page) {
   if (page === 'transactions') { txPage = 1; accountFilterId = null; accountFilterName = null; populateFilterAccounts(); loadTransactions(); initCustomSelects(); }
   if (page === 'accounts')     loadAccountsPage();
   if (page === 'audit')        loadAuditLogs();
-  if (page === 'approvals')    loadApprovals();
+  if (page === 'approvals')    { loadApprovals(); startApprovalAutoRefresh(); }
   if (page === 'settings')     loadSettings();
   if (page === 'profile')      loadProfile();
+}
+
+// 审批中心每30秒自动刷新
+function startApprovalAutoRefresh() {
+  if (approvalTimer) clearInterval(approvalTimer);
+  approvalTimer = setInterval(() => {
+    if (currentPage === 'approvals') loadApprovals();
+  }, 30000);
 }
 
 // ================================================================
