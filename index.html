@@ -88,8 +88,11 @@
       .data-table th { position: sticky; top: 0; z-index: 10; }
     }
 
-    /* ===== 模态框 ===== */
+    /* 模态框 */
     .modal-backdrop { backdrop-filter: blur(2px); }
+
+    /* 拖拽上传 hover 效果 */
+    .drag-over { border-color: #3b82f6 !important; background: #eff6ff; color: #3b82f6 !important; }
 
     /* ===== 夜间模式 ===== */
     html.dark, body.dark { background-color: #0f172a; color: #e2e8f0; }
@@ -1179,10 +1182,14 @@ document.addEventListener('DOMContentLoaded', initCustomDatePickers);
         <!-- 凭证附件 -->
         <div class="md:col-span-2">
           <label class="block text-xs font-medium text-gray-500 mb-1">凭证附件</label>
-          <div id="attachment-area" class="border-2 border-dashed border-gray-200 rounded-lg p-4 text-center text-sm text-gray-400 cursor-pointer hover:border-blue-300 hover:text-blue-400 transition-colors"
-            onclick="document.getElementById('tx-file').click()">
+          <div id="attachment-area"
+               class="border-2 border-dashed border-gray-200 rounded-lg p-4 text-center text-sm text-gray-400 cursor-pointer hover:border-blue-300 hover:text-blue-400 transition-colors"
+               onclick="document.getElementById('tx-file').click()"
+               ondragover="event.preventDefault(); this.classList.add('drag-over')"
+               ondragleave="this.classList.remove('drag-over')"
+               ondrop="event.preventDefault(); this.classList.remove('drag-over'); handleAttachmentDrop(event)">
             <svg class="w-8 h-8 mx-auto mb-1 text-gray-300" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"/><path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0z"/></svg>
-            <span>点击上传图片（支持裁切压缩）或 PDF</span>
+            <span>点击、拖拽或粘贴图片（Ctrl+V）上传，支持裁切压缩，也支持 PDF</span>
             <input type="file" id="tx-file" multiple accept="image/*,.pdf" class="hidden" onchange="handleFileSelect(event)" />
           </div>
           <div id="file-preview" class="flex flex-wrap gap-3 mt-2"></div>
@@ -1561,6 +1568,7 @@ async function init() {
   initDashboardPeriod();
   await loadDashboard();
   switchPage('dashboard');
+  setupPasteDrop();
   hideLoading();
 }
 
@@ -3233,16 +3241,58 @@ let receiptUploadTxId = null; // 正在为哪条记录上传凭证（null 表示
 
 async function handleFileSelect(e) {
   const files = Array.from(e.target.files);
-  for (const file of files) {
-    if (file.type.startsWith('image/')) {
-      // 图片：进入裁切器
-      openCropper(file);
-    } else {
-      // PDF 等非图片直接加入
-      pendingFiles.push({ file, previewUrl: null });
-    }
-  }
+  files.forEach(f => processFile(f));
   renderFilePreview();
+  e.target.value = ''; // 允许重复选择同一文件
+}
+
+// 处理单个文件（点击/拖拽/粘贴共用）
+function processFile(file) {
+  if (file.type.startsWith('image/')) {
+    openCropper(file);
+  } else {
+    pendingFiles.push({ file, previewUrl: null });
+  }
+}
+
+// 拖拽释放处理（新增记录附件区）
+function handleAttachmentDrop(e) {
+  e.preventDefault();
+  const files = Array.from(e.dataTransfer.files);
+  files.forEach(f => processFile(f));
+  renderFilePreview();
+}
+
+// ================================================================
+// 粘贴 / 拖拽监听
+// ================================================================
+function setupPasteDrop() {
+  // 全局粘贴监听（图片）
+  document.addEventListener('paste', (e) => {
+    const modalTx = document.getElementById('modal-tx');
+    const isTxOpen = !modalTx.classList.contains('hidden') || modalTx.style.display === 'flex';
+    if (!isTxOpen && !receiptUploadTxId) return;
+
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    const imageFiles = [];
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        if (file) imageFiles.push(file);
+      }
+    }
+
+    if (imageFiles.length === 0) return;
+    e.preventDefault();
+
+    if (imageFiles.length > 1) {
+      showToast(`已处理第一张，共 ${imageFiles.length} 张，请逐次粘贴`, 'info');
+    }
+    // 裁切器一次只处理一张
+    processFile(imageFiles[0]);
+  });
 }
 
 // ================================================================
