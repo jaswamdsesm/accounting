@@ -873,23 +873,20 @@ document.addEventListener('DOMContentLoaded', initCustomDatePickers);
       <table class="data-table w-full text-sm border-collapse">
         <thead>
           <tr class="bg-gray-100 text-gray-500 text-xs uppercase tracking-wider">
-            <th class="text-left px-3 py-2 rounded-tl-lg cursor-pointer hover:bg-gray-200" onclick="sortBy('serial_no')">
-              流水号 <span id="sort-serial_no"></span>
-            </th>
-            <th class="text-left px-3 py-2 cursor-pointer hover:bg-gray-200" onclick="sortBy('transaction_date')">
+            <th class="text-left px-3 py-2 rounded-tl-lg cursor-pointer hover:bg-gray-200 whitespace-nowrap" onclick="sortBy('transaction_date')">
               日期 <span id="sort-transaction_date"></span>
             </th>
-            <th class="text-left px-3 py-2">收支</th>
-            <th class="text-right px-3 py-2 cursor-pointer hover:bg-gray-200" onclick="sortBy('amount')">
+            <th class="text-center px-3 py-2 whitespace-nowrap" style="min-width:56px;max-width:72px;">收支</th>
+            <th class="text-right px-3 py-2 cursor-pointer hover:bg-gray-200 whitespace-nowrap" onclick="sortBy('amount')">
               金额 <span id="sort-amount"></span>
             </th>
-            <th class="text-left px-3 py-2">分类</th>
-            <th class="text-left px-3 py-2">关联账户</th>
-            <th class="text-left px-3 py-2">交易对方</th>
-            <th class="text-left px-3 py-2">备注</th>
-            <th class="text-center px-3 py-2">状态</th>
-            <th class="text-center px-3 py-2 whitespace-nowrap">类型</th>
-            <th class="text-right px-3 py-2 rounded-tr-lg">操作</th>
+            <th class="text-left px-3 py-2" style="min-width:70px;">分类</th>
+            <th class="text-left px-3 py-2" style="min-width:80px;">关联账户</th>
+            <th class="text-left px-3 py-2" style="min-width:80px;">交易对方</th>
+            <th class="text-left px-3 py-2" style="min-width:100px;max-width:180px;">备注</th>
+            <th class="text-center px-3 py-2 whitespace-nowrap" style="min-width:48px;">状态</th>
+            <th class="text-center px-3 py-2 whitespace-nowrap" style="min-width:56px;">类型</th>
+            <th class="text-right px-3 py-2 rounded-tr-lg whitespace-nowrap">操作</th>
           </tr>
         </thead>
         <tbody id="tx-table-body">
@@ -2052,7 +2049,7 @@ function sortBy(col) {
   if (txSortCol === col) txSortAsc = !txSortAsc;
   else { txSortCol = col; txSortAsc = false; }
   // 更新箭头
-  ['serial_no','transaction_date','amount'].forEach(c => {
+  ['transaction_date','amount'].forEach(c => {
     const el = document.getElementById('sort-' + c);
     if (el) el.textContent = c === txSortCol ? (txSortAsc ? '↑' : '↓') : '';
   });
@@ -2068,7 +2065,7 @@ function toggleSort() {
   const icon = document.getElementById('sort-icon');
   if (icon) icon.textContent = txSortAsc ? '↑' : '↓';
   // 同步更新表头箭头
-  ['serial_no','transaction_date','amount'].forEach(c => {
+  ['transaction_date','amount'].forEach(c => {
     const el = document.getElementById('sort-' + c);
     if (el) el.textContent = c === txSortCol ? (txSortAsc ? '↑' : '↓') : '';
   });
@@ -2161,9 +2158,8 @@ function renderTxRow(t) {
 
   return `
     <tr class="zebra-row border-b border-gray-100 hover:bg-blue-50/30 transition-colors ${cls}">
-      <td class="px-3 py-2 text-xs text-gray-400 whitespace-nowrap">${escHtml(t.serial_no)}</td>
       <td class="px-3 py-2 text-sm whitespace-nowrap">${t.transaction_date}</td>
-      <td class="px-3 py-2">
+      <td class="px-3 py-2 text-center" style="min-width:56px;max-width:72px;">
         <span class="${t.tx_type === 'income' ? 'text-green-600' : 'text-red-500'} text-xs font-medium">
           ${t.tx_type === 'income' ? '↑ 收入' : '↓ 支出'}
         </span>
@@ -2171,12 +2167,12 @@ function renderTxRow(t) {
       <td class="px-3 py-2 text-right font-mono font-medium text-sm whitespace-nowrap">
         ${t.tx_type === 'income' ? '+' : '-'}${fmtMoney(Math.abs(t.amount))}
       </td>
-      <td class="px-3 py-2 text-sm">${escHtml(t.category)}</td>
-      <td class="px-3 py-2 text-sm text-gray-500">${escHtml(accountName)}</td>
-      <td class="px-3 py-2 text-sm">${escHtml(t.counterparty)}</td>
-      <td class="px-3 py-2 text-sm text-gray-500 max-w-[200px] truncate" title="${escHtml(t.description || '')}">${escHtml(t.description || '--')}</td>
-      <td class="px-3 py-2 text-center">${lockBadge}</td>
-      <td class="px-3 py-2 text-center whitespace-nowrap min-w-[60px]">${typeBadge}</td>
+      <td class="px-3 py-2 text-sm" style="min-width:70px;">${escHtml(t.category)}</td>
+      <td class="px-3 py-2 text-sm text-gray-500" style="min-width:80px;">${escHtml(accountName)}</td>
+      <td class="px-3 py-2 text-sm" style="min-width:80px;">${escHtml(t.counterparty)}</td>
+      <td class="px-3 py-2 text-sm text-gray-500 max-w-[180px] truncate" title="${escHtml(t.description || '')}">${escHtml(t.description || '--')}</td>
+      <td class="px-3 py-2 text-center" style="min-width:48px;">${lockBadge}</td>
+      <td class="px-3 py-2 text-center whitespace-nowrap" style="min-width:56px;">${typeBadge}</td>
       <td class="px-3 py-2 text-right whitespace-nowrap">
         ${canEdit ? `
           <button onclick="openReversal('${t.id}')"
