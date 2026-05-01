@@ -3230,6 +3230,7 @@ async function confirmImport() {
 // 飞书消息通知
 // ================================================================
 const FEISHU_WEBHOOK_KEY = 'shareholder_feishu_webhook';
+const DEFAULT_FEISHU_WEBHOOK = 'https://open.feishu.cn/open-apis/bot/v2/hook/24122438-ccca-4264-b84b-913ccfc4935d';
 
 function openFeishuNotifyModal() {
   const saved = localStorage.getItem(FEISHU_WEBHOOK_KEY) || '';
@@ -3244,17 +3245,13 @@ function saveFeishuWebhook() {
     showToast('Webhook 已保存', 'success');
   } else {
     localStorage.removeItem(FEISHU_WEBHOOK_KEY);
-    showToast('已清除 Webhook', 'info');
+    showToast('已恢复默认 Webhook', 'info');
   }
   closeModal('modal-feishu-notify');
 }
 
 async function sendFeishuNotify(title, content) {
-  const webhook = localStorage.getItem(FEISHU_WEBHOOK_KEY);
-  if (!webhook) {
-    showToast('飞书通知未配置，请在个人设置中填写 Webhook', 'warning');
-    return;
-  }
+  const webhook = localStorage.getItem(FEISHU_WEBHOOK_KEY) || DEFAULT_FEISHU_WEBHOOK;
 
   try {
     const resp = await fetch(webhook, {
