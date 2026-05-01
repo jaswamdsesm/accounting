@@ -3830,13 +3830,17 @@ async function openReceiptViewer(txId, counterparty) {
   document.getElementById('receipt-grid').innerHTML = '<div class="col-span-full text-center text-gray-400 py-4 text-sm">加载中...</div>';
   openModal('modal-receipt-viewer');
 
-  try {
-    // 用 RPC 查询，绕过 RLS 确保读到的数据准确
-    const { data, error } = await sb.rpc('get_receipts', { tx_id: txId });
-    if (error) throw error;
+  const grid = document.getElementById('receipt-grid');
 
-    const urls = Array.isArray(data) ? data : [];
-    const grid = document.getElementById('receipt-grid');
+  try {
+    // 直接查单条记录的 receipt_urls，比 RPC 轻量
+    const { data, error } = await sb.from('transactions')
+      .select('receipt_urls')
+      .eq('id', txId)
+      .single();
+
+    if (error) throw error;
+    const urls = data?.receipt_urls || [];
 
     if (!urls.length) {
       grid.innerHTML = '<div class="col-span-full text-center text-gray-400 py-4 text-sm">暂无凭证</div>';
@@ -3846,11 +3850,11 @@ async function openReceiptViewer(txId, counterparty) {
     grid.innerHTML = urls.map(url => `
       <div class="aspect-square rounded-lg overflow-hidden border border-gray-200 cursor-pointer hover:border-blue-400 transition-colors"
            onclick="openImageViewer('${escHtml(url)}')">
-        <img src="${escHtml(url)}" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='<div class=\\'flex items-center justify-center h-full text-gray-300 text-xs\\'>加载失败</div>'" />
+        <img src="${escHtml(url)}" loading="lazy" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='<div class=\\'flex items-center justify-center h-full text-gray-300 text-xs\\'>加载失败</div>'" />
       </div>
     `).join('');
   } catch (err) {
-    document.getElementById('receipt-grid').innerHTML = `<div class="col-span-full text-center text-red-400 py-4 text-sm">加载失败：${escHtml(err.message)}</div>`;
+    grid.innerHTML = `<div class="col-span-full text-center text-red-400 py-4 text-sm">加载失败：${escHtml(err.message)}</div>`;
   }
 }
 
