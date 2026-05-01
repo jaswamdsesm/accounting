@@ -2211,12 +2211,10 @@ function renderTxCard(t) {
               上传凭证
             </button>
           ` : ''}
-          ${t.receipt_urls && Array.isArray(t.receipt_urls) && t.receipt_urls.length > 0 ? `
-            <button onclick="openReceiptViewer('${t.id}', '${escHtml(t.counterparty || '')}')"
-              class="btn-touch text-xs px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 min-h-[44px]">
-              查看凭证(${t.receipt_urls.length})
-            </button>
-          ` : ''}
+          <button onclick="openReceiptViewer('${t.id}', '${escHtml(t.counterparty || '')}')"
+            class="btn-touch text-xs px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 min-h-[44px]">
+            查看凭证
+          </button>
           ${isLocked ? `<span class="text-[10px] text-gray-400 self-center inline-flex items-center gap-0.5"><svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>已锁定</span>` : ''}
         </div>
       </div>
@@ -2282,12 +2280,10 @@ function renderTxRow(t) {
             上传凭证
           </button>
         ` : ''}
-        ${t.receipt_urls && Array.isArray(t.receipt_urls) && t.receipt_urls.length > 0 ? `
-          <button onclick="openReceiptViewer('${t.id}', '${escHtml(t.counterparty || '')}')"
-            class="text-xs px-2 py-1 rounded text-blue-600 hover:bg-blue-50 border border-transparent hover:border-blue-200 transition-colors ml-1">
-            查看凭证(${t.receipt_urls.length})
-          </button>
-        ` : ''}
+        <button onclick="openReceiptViewer('${t.id}', '${escHtml(t.counterparty || '')}')"
+          class="text-xs px-2 py-1 rounded text-blue-600 hover:bg-blue-50 border border-transparent hover:border-blue-200 transition-colors ${canBookkeep() ? 'ml-1' : ''}">
+          查看凭证
+        </button>
       </td>
     </tr>
   `;
@@ -3928,6 +3924,7 @@ function openReceiptCropper(file) {
     document.getElementById('upload-receipt-panel').classList.add('md:max-w-3xl');
 
     requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
       const container = document.getElementById('crop-canvas-rc').parentElement;
       const maxW = container.clientWidth - 8;
       const maxH = window.innerHeight * 0.50;
@@ -3966,6 +3963,7 @@ function openReceiptCropper(file) {
 
       drawCropOverlayRC();
       bindCropEventsRC();
+      });
     });
   };
   img.onerror = () => showToast('图片加载失败，请重试', 'error');
@@ -4205,19 +4203,22 @@ async function doUploadReceipt() {
   btn.textContent = '上传中...';
 
   try {
+    const uid = currentUser?.id;
+    if (!uid) throw new Error('未登录，请重新进入');
+
     for (const item of receiptPendingFiles) {
-      const path = `vouchers/${currentUser.id}/${Date.now()}-${item.file.name}`;
+      const path = `vouchers/${uid}/${Date.now()}-${item.file.name}`;
       const { data, error: upErr } = await sb.storage.from('attachments').upload(path, item.file);
-      if (upErr) throw upErr;
+      if (upErr) throw new Error('文件上传失败：' + upErr.message);
       const { data: urlData } = sb.storage.from('attachments').getPublicUrl(path);
       const { error: rpcErr } = await sb.rpc('attach_receipt', { tx_id: receiptUploadTxId, new_url: urlData.publicUrl });
-      if (rpcErr) throw rpcErr;
+      if (rpcErr) throw new Error('关联凭证失败：' + rpcErr.message);
     }
     showToast(`已上传 ${receiptPendingFiles.length} 张凭证`, 'success');
     loadTransactions();
     closeUploadReceiptModal();
   } catch (err) {
-    showToast('上传失败：' + err.message, 'error');
+    showToast(err.message, 'error');
     btn.disabled = false;
     btn.textContent = '上传';
   }
