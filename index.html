@@ -3307,7 +3307,7 @@ async function loadApprovals() {
     const approveCount = votes.filter(v => v.vote === 'approve').length;
     const rejectCount  = votes.filter(v => v.vote === 'reject').length;
     const myVote = votes.find(v => v.user_id === currentUser.id);
-    const canVote = ap.status === 'pending' && !myVote;
+    const canVote = ap.status === 'pending';
 
     return `
       <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
@@ -3322,13 +3322,19 @@ async function loadApprovals() {
         <div class="flex items-center gap-3 text-xs text-gray-400 mb-3 whitespace-nowrap">
           <span class="text-green-600 inline-flex items-center gap-0.5"><svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>${approveCount} 人同意</span>
           <span class="text-red-500 inline-flex items-center gap-0.5"><svg class="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>${rejectCount} 人拒绝</span>
-          ${myVote ? `<span class="text-gray-400">（你已投票：${myVote.vote === 'approve' ? '同意' : '拒绝'}）</span>` : ''}
         </div>
         ${canVote ? `
-          <button onclick="openVoteModal('${ap.id}', \`${escHtml(ap.title)}\`)"
-            class="btn-touch w-full btn-bottom rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700">
-            参与投票
-          </button>
+          <div class="flex gap-3">
+            <button onclick="castVoteDirect('${ap.id}','reject')"
+              class="flex-1 btn-bottom rounded-xl border-2 border-red-400 text-red-600 text-sm font-medium hover:bg-red-50 ${myVote?.vote === 'reject' ? 'bg-red-50' : ''}">
+              拒绝
+            </button>
+            <button onclick="castVoteDirect('${ap.id}','approve')"
+              class="flex-1 btn-bottom rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium ${myVote?.vote === 'approve' ? 'opacity-75' : ''}">
+              同意
+            </button>
+          </div>
+          ${myVote ? '<p class="text-xs text-center text-gray-400 mt-2">再次点击可修改投票</p>' : ''}
         ` : ''}
       </div>
     `;
@@ -3336,17 +3342,21 @@ async function loadApprovals() {
 }
 
 function openVoteModal(approvalId, title) {
-  document.getElementById('vote-approval-id').value = approvalId;
-  document.getElementById('vote-info').textContent = title;
-  openModal('modal-vote');
+  // 保留空函数，防止其他引用报错（如旧缓存页面）
 }
 
 async function castVote(vote) {
   const approvalId = document.getElementById('vote-approval-id').value;
   try {
     const { data: ap } = await sb.from('approvals').select('*').eq('id', approvalId).single();
-    const votes = ap.votes || [];
-    votes.push({ user_id: currentUser.id, name: currentUser.name, vote, voted_at: new Date().toISOString() });
+    let votes = ap.votes || [];
+    // 替换已有投票（同一人只能有一条投票记录）
+    const existingIdx = votes.findIndex(v => v.user_id === currentUser.id);
+    if (existingIdx >= 0) {
+      votes[existingIdx] = { user_id: currentUser.id, name: currentUser.name, vote, voted_at: new Date().toISOString() };
+    } else {
+      votes.push({ user_id: currentUser.id, name: currentUser.name, vote, voted_at: new Date().toISOString() });
+    }
 
     // 判断是否达到通过条件（全部股东同意，3票）
     const approveCount = votes.filter(v => v.vote === 'approve').length;
@@ -3393,6 +3403,60 @@ async function castVote(vote) {
 
     showToast('投票成功', 'success');
     closeModal('modal-vote');
+    loadApprovals();
+  } catch(err) {
+    showToast('投票失败：' + err.message, 'error');
+  }
+}
+
+// 卡片上直接投票（不用弹窗）
+async function castVoteDirect(approvalId, vote) {
+  try {
+    const { data: ap } = await sb.from('approvals').select('*').eq('id', approvalId).single();
+    let votes = ap.votes || [];
+    const existingIdx = votes.findIndex(v => v.user_id === currentUser.id);
+    if (existingIdx >= 0) {
+      votes[existingIdx] = { user_id: currentUser.id, name: currentUser.name, vote, voted_at: new Date().toISOString() };
+    } else {
+      votes.push({ user_id: currentUser.id, name: currentUser.name, vote, voted_at: new Date().toISOString() });
+    }
+
+    const approveCount = votes.filter(v => v.vote === 'approve').length;
+    const rejectCount  = votes.filter(v => v.vote === 'reject').length;
+    let newStatus = ap.status;
+    if (approveCount >= 3) newStatus = 'approved';
+    else if (rejectCount >= 3) newStatus = 'rejected';
+
+    await sb.from('approvals').update({ votes, status: newStatus, resolved_at: newStatus !== 'pending' ? new Date().toISOString() : null })
+      .eq('id', approvalId);
+
+    const voteLabel = vote === 'approve' ? '同意' : '拒绝';
+    const statusHint = newStatus === 'pending'
+      ? `当前 ${approveCount} 同意 / ${rejectCount} 拒绝，还需 ${Math.max(0, 3 - approveCount)} 票同意`
+      : (newStatus === 'approved' ? '审批已通过！' : '审批已被拒绝');
+    await sendFeishuNotify(
+      `${currentUser.name} 参与了投票`,
+      `**${ap.title}**\n${currentUser.name} 投了 ${voteLabel}\n${statusHint}`
+    );
+
+    // 账期锁定：审批通过后批量锁定
+    if (newStatus === 'approved' && ap.approval_type === 'period_lock' && ap.billing_period) {
+      await sb.rpc('approve_period_lock', {
+        p_billing_period: ap.billing_period,
+        p_operator_id:    currentUser.id,
+        p_operator_name:  currentUser.name
+      });
+      await sendFeishuNotify(
+        `账期锁定已通过`,
+        `${ap.billing_period} 账期已锁定，共 ${approveCount} 票同意。`
+      );
+    } else if (newStatus === 'approved' && ap.approval_type === 'modify_locked') {
+      await sendFeishuNotify(`修改申请已通过`, `"${ap.title}" 已通过审批。`);
+    } else if (newStatus === 'rejected') {
+      await sendFeishuNotify(`审批已被拒绝`, `"${ap.title}" 被拒绝（${rejectCount} 票拒绝）。`);
+    }
+
+    showToast('投票成功', 'success');
     loadApprovals();
   } catch(err) {
     showToast('投票失败：' + err.message, 'error');
