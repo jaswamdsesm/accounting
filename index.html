@@ -4007,9 +4007,6 @@ function drawCropOverlayRC() {
 function bindCropEventsRC() {
   const canvas = cropStateRC.canvas;
   canvas.onpointerdown = (e) => handlePointerDownRC(e);
-  canvas.onpointermove = (e) => handlePointerMoveRC(e);
-  canvas.onpointerup   = (e) => handlePointerUpRC(e);
-  canvas.onpointercancel = (e) => handlePointerUpRC(e);
   canvas.style.touchAction = 'none';
 }
 
@@ -4039,7 +4036,10 @@ function handlePointerDownRC(e) {
       cropStateRC.dragging = 'corner-' + c.name;
       cropStateRC.dragStart = { x: mx, y: my };
       cropStateRC.dragCropStart = { ...crop };
-      e.preventDefault(); return;
+      e.preventDefault();
+      document.addEventListener('pointermove', handlePointerMoveRC);
+      document.addEventListener('pointerup', handlePointerUpRC);
+      return;
     }
   }
   // 检测边中把手
@@ -4054,7 +4054,10 @@ function handlePointerDownRC(e) {
       cropStateRC.dragging = 'edge-' + e2.name;
       cropStateRC.dragStart = { x: mx, y: my };
       cropStateRC.dragCropStart = { ...crop };
-      e.preventDefault(); return;
+      e.preventDefault();
+      document.addEventListener('pointermove', handlePointerMoveRC);
+      document.addEventListener('pointerup', handlePointerUpRC);
+      return;
     }
   }
   // 检测是否在裁切框内部（拖动）
@@ -4062,7 +4065,10 @@ function handlePointerDownRC(e) {
     cropStateRC.dragging = 'move';
     cropStateRC.dragStart = { x: mx, y: my };
     cropStateRC.dragCropStart = { ...crop };
-    e.preventDefault(); return;
+    e.preventDefault();
+    document.addEventListener('pointermove', handlePointerMoveRC);
+    document.addEventListener('pointerup', handlePointerUpRC);
+    return;
   }
   // 点击空白区域：重新选择裁切框
   const margin = 0.1;
@@ -4116,6 +4122,8 @@ function handlePointerMoveRC(e) {
 
 function handlePointerUpRC(e) {
   if (cropStateRC) cropStateRC.dragging = null;
+  document.removeEventListener('pointermove', handlePointerMoveRC);
+  document.removeEventListener('pointerup', handlePointerUpRC);
 }
 
 function applyCropPresetRC() {
@@ -4144,9 +4152,11 @@ function applyCropPresetRC() {
 }
 
 function cancelReceiptCrop() {
+  document.removeEventListener('pointermove', handlePointerMoveRC);
+  document.removeEventListener('pointerup', handlePointerUpRC);
   cropStateRC = null;
   const canvas = document.getElementById('crop-canvas-rc');
-  canvas.onpointerdown = canvas.onpointermove = canvas.onpointerup = canvas.onpointercancel = null;
+  canvas.onpointerdown = null;
   // 切回上传视图
   document.getElementById('receipt-crop-view').classList.add('hidden');
   document.getElementById('receipt-upload-view').classList.remove('hidden');
@@ -4187,9 +4197,11 @@ function confirmReceiptCrop() {
     const previewUrl = URL.createObjectURL(blob);
     receiptPendingFiles.push({ file: croppedFile, previewUrl });
     // 清理裁切状态并切回上传视图
+    document.removeEventListener('pointermove', handlePointerMoveRC);
+    document.removeEventListener('pointerup', handlePointerUpRC);
     cropStateRC = null;
     const canvas = document.getElementById('crop-canvas-rc');
-    canvas.onpointerdown = canvas.onpointermove = canvas.onpointerup = canvas.onpointercancel = null;
+    canvas.onpointerdown = null;
     document.getElementById('receipt-crop-view').classList.add('hidden');
     document.getElementById('receipt-upload-view').classList.remove('hidden');
     document.getElementById('upload-receipt-panel').classList.remove('md:max-w-3xl');
