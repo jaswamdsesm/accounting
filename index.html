@@ -1632,6 +1632,7 @@ async function init() {
   sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
   try {
+    // 第1步：登录（串行，后续需要 currentUser）
     try {
       await feishuLogin();
     } catch(e) {
@@ -1639,15 +1640,20 @@ async function init() {
       await devLogin();
     }
 
-    await loadAccounts();
+    // 第2步：先显示页面，不等数据加载完
     initDashboardPeriod();
-    await loadDashboard();
     switchPage('dashboard');
     setupPasteDrop();
+    hideLoading();
+
+    // 第3步：后台并行加载数据（不阻塞页面显示）
+    await Promise.all([
+      loadAccounts(),
+      loadDashboard(),
+    ]);
   } catch(e) {
     console.error('初始化失败:', e);
     showToast('初始化失败：' + e.message, 'error');
-  } finally {
     hideLoading();
   }
 }
