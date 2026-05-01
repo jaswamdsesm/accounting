@@ -945,15 +945,15 @@ document.addEventListener('DOMContentLoaded', initCustomDatePickers);
         显示系统操作
       </button>
     </div>
-    <div class="overflow-x-auto">
+    <div class="overflow-x-auto rounded-lg border border-gray-100">
       <table class="data-table w-full text-xs md:text-sm border-collapse">
         <thead>
           <tr class="bg-gray-100 text-gray-500 text-xs uppercase">
-            <th class="text-left px-3 py-2">时间</th>
-            <th class="text-left px-3 py-2">操作人</th>
-            <th class="text-left px-3 py-2">类型</th>
-            <th class="text-left px-3 py-2">对象</th>
-            <th class="text-left px-3 py-2">变更内容</th>
+            <th class="text-left px-3 py-2 whitespace-nowrap">时间</th>
+            <th class="text-left px-3 py-2 whitespace-nowrap">操作人</th>
+            <th class="text-left px-3 py-2 whitespace-nowrap">类型</th>
+            <th class="text-left px-3 py-2 whitespace-nowrap">对象</th>
+            <th class="text-left px-3 py-2 min-w-[140px]">变更内容</th>
           </tr>
         </thead>
         <tbody id="audit-table-body"></tbody>
@@ -1749,8 +1749,8 @@ function callRequestAuthCode(ttObj, resolve, reject) {
 // 开发调试登录（非飞书环境）
 // ================================================================
 async function devLogin() {
-  // 查询第一个用户，若不存在则创建
-  let { data: users } = await sb.from('app_users').select('*').limit(1);
+  // 查询所有用户，弹出选择框
+  const { data: users } = await sb.from('app_users').select('*').order('created_at');
   if (!users || users.length === 0) {
     const { data: newUser } = await sb.from('app_users').insert({
       feishu_uid: 'dev-user-001',
@@ -1758,8 +1758,21 @@ async function devLogin() {
       role: 'shareholder_bookkeeper'
     }).select().single();
     currentUser = newUser;
-  } else {
+  } else if (users.length === 1) {
     currentUser = users[0];
+  } else {
+    // 多用户时弹出选择
+    const choice = prompt(
+      '请选择登录用户（输入序号）：\n' +
+      users.map((u, i) => `${i + 1}. ${u.name} [${roleLabel(u.role)}]`).join('\n')
+    );
+    const idx = parseInt(choice) - 1;
+    if (isNaN(idx) || idx < 0 || idx >= users.length) {
+      showToast('无效选择，默认使用第一个用户', 'warning');
+      currentUser = users[0];
+    } else {
+      currentUser = users[idx];
+    }
   }
   document.getElementById('sidebar-user').textContent = currentUser.name + ' · ' + roleLabel(currentUser.role);
 }
@@ -2688,7 +2701,9 @@ function describeChange(l) {
       if (JSON.stringify(bv) === JSON.stringify(av)) continue;
       const oldV = formatFieldValue(key, bv);
       const newV = formatFieldValue(key, av);
-      if (table === 'accounts' && key === 'current_balance') {
+      if (key === 'receipt_urls') {
+        parts.push('更新凭证');
+      } else if (table === 'accounts' && key === 'current_balance') {
         parts.push(`余额 ${oldV || '—'} → ${newV}`);
       } else {
         parts.push(`${label}: ${oldV || '—'} → ${newV}`);
