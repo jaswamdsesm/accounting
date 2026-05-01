@@ -945,16 +945,16 @@ document.addEventListener('DOMContentLoaded', initCustomDatePickers);
         显示系统操作
       </button>
     </div>
-    <div class="rounded-lg border border-gray-100 overflow-hidden">
+    <div class="rounded-lg border border-gray-100 overflow-hidden bg-white">
       <div class="overflow-x-auto">
-        <table class="data-table w-full text-xs md:text-sm">
+        <table class="data-table min-w-[640px] w-full text-xs md:text-sm">
           <thead>
-            <tr class="text-gray-500 text-xs uppercase">
-              <th class="text-left px-3 py-2 bg-gray-100 first:rounded-tl-lg whitespace-nowrap">时间</th>
-              <th class="text-left px-3 py-2 bg-gray-100 whitespace-nowrap">操作人</th>
-              <th class="text-left px-3 py-2 bg-gray-100 whitespace-nowrap">类型</th>
-              <th class="text-left px-3 py-2 bg-gray-100 whitespace-nowrap">对象</th>
-              <th class="text-left px-3 py-2 bg-gray-100 last:rounded-tr-lg whitespace-nowrap">变更内容</th>
+            <tr class="text-gray-500 text-xs uppercase bg-gray-100">
+              <th class="text-left px-3 py-2 whitespace-nowrap">时间</th>
+              <th class="text-left px-3 py-2 whitespace-nowrap">操作人</th>
+              <th class="text-left px-3 py-2 whitespace-nowrap">类型</th>
+              <th class="text-left px-3 py-2 whitespace-nowrap">对象</th>
+              <th class="text-left px-3 py-2 whitespace-nowrap">变更内容</th>
             </tr>
           </thead>
           <tbody id="audit-table-body"></tbody>
