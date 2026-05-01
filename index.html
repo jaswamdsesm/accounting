@@ -3879,7 +3879,9 @@ function triggerReceiptUpload(txId) {
   receiptUploadTxId = txId;
   receiptPendingFiles = [];
   renderReceiptFilePreview();
-  document.getElementById('btn-upload-receipt').disabled = true;
+  const btn = document.getElementById('btn-upload-receipt');
+  btn.disabled = true;
+  btn.textContent = '上传';
   openModal('modal-upload-receipt');
 }
 
