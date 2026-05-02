@@ -1349,6 +1349,16 @@ document.addEventListener('DOMContentLoaded', initCustomDatePickers);
         </button>
       </div>
       <div>
+        <textarea id="import-paste-area" rows="6" placeholder="或直接粘贴文本，每行一条，逗号分隔：&#10;日期,收支类型,金额,分类,关联账户,交易对方,交易说明&#10;2026-05-02,支出,448.16,其他支出,库存现金,Hostinger,域名服务器"
+          class="w-full text-sm border border-gray-200 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent placeholder-gray-300 resize-none font-mono"></textarea>
+        <div class="flex justify-end mt-1">
+          <button type="button" onclick="handlePasteImport()"
+            class="text-xs text-blue-500 hover:text-blue-700 font-medium px-3 py-1 rounded-md hover:bg-blue-50 transition-colors">
+            解析粘贴内容
+          </button>
+        </div>
+      </div>
+      <div>
         <div id="import-drop-zone"
           class="border-2 border-dashed border-gray-200 rounded-lg p-4 text-center text-sm text-gray-400 cursor-pointer hover:border-blue-300 hover:text-blue-400 transition-colors"
           onclick="document.getElementById('import-file').click()"
@@ -3034,6 +3044,7 @@ function openImportModal() {
   importData = [];
   document.getElementById('import-file').value = '';
   document.getElementById('import-file-name').textContent = '';
+  document.getElementById('import-paste-area').value = '';
   document.getElementById('import-preview-area').classList.add('hidden');
   document.getElementById('import-errors').textContent = '';
   document.getElementById('btn-confirm-import').disabled = true;
@@ -3086,6 +3097,61 @@ function downloadImportTemplate() {
   XLSX.utils.book_append_sheet(wb, accWs, '账户参考');
 
   XLSX.writeFile(wb, '账单导入模板.xlsx');
+}
+
+function handlePasteImport() {
+  const text = document.getElementById('import-paste-area').value.trim();
+  if (!text) {
+    document.getElementById('import-errors').textContent = '请先粘贴文本内容';
+    return;
+  }
+
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  const rows = [];
+
+  for (const line of lines) {
+    // 跳过表头行（包含"日期"或"收支类型"或"金额"等关键字）
+    if (/^(日期|date|收支类型|type|金额|amount|分类|category)/i.test(line.trim())) continue;
+    // 支持逗号、制表符、中文逗号分隔
+    const cols = line.split(/[,\t，]/).map(c => c.trim());
+    // 至少有6列且有日期
+    if (cols.length >= 6 && cols[0] && /^\d{4}-\d{2}-\d{2}$/.test(cols[0])) {
+      rows.push(cols);
+    }
+  }
+
+  if (rows.length === 0) {
+    document.getElementById('import-errors').textContent = '未识别到有效数据，请检查格式（逗号分隔，至少6列）';
+    document.getElementById('btn-confirm-import').disabled = true;
+    document.getElementById('import-preview-area').classList.add('hidden');
+    return;
+  }
+
+  importData = rows;
+
+  // 复用验证和预览逻辑
+  const errors = validateImportData(rows);
+  const errorEl = document.getElementById('import-errors');
+  if (errors.length > 0) {
+    errorEl.textContent = errors.slice(0, 5).join('；');
+    if (errors.length > 5) errorEl.textContent += `…等 ${errors.length} 个错误`;
+  } else {
+    errorEl.textContent = '';
+    document.getElementById('btn-confirm-import').disabled = false;
+  }
+
+  const headers = ['日期', '收支类型', '金额', '分类', '关联账户', '交易对方', '交易说明'];
+  const headHtml = '<tr>' + headers.map(h => `<th class="px-2 py-1 text-left border-b bg-gray-50 font-medium text-gray-500">${h}</th>`).join('') + '</tr>';
+  const bodyHtml = rows.slice(0, 5).map(row => {
+    return '<tr class="border-b border-gray-50">' +
+      headers.map((_, i) => `<td class="px-2 py-1 whitespace-nowrap">${escHtml(String(row[i] || ''))}</td>`).join('') +
+      '</tr>';
+  }).join('');
+
+  document.getElementById('import-preview-head').innerHTML = headHtml;
+  document.getElementById('import-preview-body').innerHTML = bodyHtml;
+  document.getElementById('import-count').textContent = `共 ${rows.length} 条`;
+  document.getElementById('import-preview-area').classList.remove('hidden');
 }
 
 // 拖入文件处理
