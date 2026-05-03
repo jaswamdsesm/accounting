@@ -3960,6 +3960,7 @@ function applyCropPreset() {
   if (!cropState) return;
   const preset = document.getElementById('crop-preset').value;
   const { displayW, displayH } = cropState;
+  const minSize = 30;
 
   if (preset === 'auto') {
     // 80% 居中
@@ -3992,6 +3993,13 @@ function applyCropPreset() {
       h: Math.round(cropH)
     };
   }
+  // 边界约束（安全网）
+  let { x, y, w, h } = cropState.crop;
+  x = Math.max(0, Math.min(x, displayW - minSize));
+  y = Math.max(0, Math.min(y, displayH - minSize));
+  w = Math.max(minSize, Math.min(w, displayW - x));
+  h = Math.max(minSize, Math.min(h, displayH - y));
+  cropState.crop = { x, y, w, h };
   drawCropOverlay();
 }
 
@@ -4461,6 +4469,11 @@ function handlePointerMoveRC(e) {
   } else if (cropStateRC.dragging === 'edge-r') {
     crop.w = Math.max(minSize, cs.w + dx);
   }
+  // 边界约束：确保裁切框不超出图片范围
+  crop.x = Math.max(0, Math.min(crop.x, displayW - minSize));
+  crop.y = Math.max(0, Math.min(crop.y, displayH - minSize));
+  crop.w = Math.max(minSize, Math.min(crop.w, displayW - crop.x));
+  crop.h = Math.max(minSize, Math.min(crop.h, displayH - crop.y));
   drawCropOverlayRC();
 }
 
@@ -4492,6 +4505,11 @@ function applyCropPresetRC() {
     crop.w = Math.round(cropW);
     crop.h = Math.round(cropH);
   }
+  // 边界约束：确保不超出图片范围
+  crop.x = Math.max(0, Math.min(crop.x, displayW - minSize));
+  crop.y = Math.max(0, Math.min(crop.y, displayH - minSize));
+  crop.w = Math.max(minSize, Math.min(crop.w, displayW - crop.x));
+  crop.h = Math.max(minSize, Math.min(crop.h, displayH - crop.y));
   drawCropOverlayRC();
 }
 
